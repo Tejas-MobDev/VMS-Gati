@@ -24,6 +24,8 @@ import {
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+
 import { useAppContext } from '../../context/AppContext';
 import {
     GetListOfRMAndVendorsBasedOnASM,
@@ -32,6 +34,9 @@ import {
 } from '../../services/api';
 import HelperService from '../../utils/helpers';
 
+// Maps Angular route paths from API response → RN screen names.
+// All target screens are registered in DashboardStack so navigation.navigate()
+// works within the same stack, providing an automatic back button.
 const routeMap: Record<string, string> = {
     '/tabs/pendingsalesorder': 'PendingSalesOrder',
     '/tabs/todaysalesorder': 'TodaySalesOrder',
@@ -114,6 +119,7 @@ const ASMDashboardScreen = () => {
         setDashboardData([]);
         const vendor = allVendors.find(v => v.ID.toString() === value.toString());
         await setSelectedVendor(value.toString(), vendor?.Name ?? '');
+        // await handleRefresh(); // auto refresh on vendor change
     };
 
     const handleRefresh = async () => {
@@ -126,6 +132,7 @@ const ASMDashboardScreen = () => {
                 selectedVendorLocal,
                 selectedRMLocal,
             );
+            console.log('[ASMDashboard] Refreshed', res);
             if (res.IsSuccess) {
                 setDashboardData(res.Data);
             } else {
@@ -248,7 +255,13 @@ const ASMDashboardScreen = () => {
                         <Text style={styles.refreshBtnText}>↻  Refresh</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-                        <Text style={styles.logoutBtnText}>Logout</Text>
+                        <Text style={styles.logoutBtnText}> Logout
+                            {/* <MaterialIcons
+                                name={'logout'}
+                                size={20}
+                                color="#fff"
+                            /> */}
+                        </Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -293,7 +306,7 @@ const styles = StyleSheet.create({
     emptyText: { textAlign: 'center', color: '#aaa', marginTop: 40, fontSize: 14 },
     footer: { backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#eee' },
     dangerBtn: {
-        backgroundColor: '#eb445a',
+        backgroundColor: '#f33e3e',
         margin: 10,
         marginBottom: 4,
         borderRadius: 8,
@@ -318,7 +331,7 @@ const styles = StyleSheet.create({
     refreshBtnText: { color: '#fff', fontWeight: '600' },
     logoutBtn: {
         flex: 1,
-        backgroundColor: '#92949c',
+        backgroundColor: '#3880ff',
         borderRadius: 8,
         paddingVertical: 10,
         alignItems: 'center',

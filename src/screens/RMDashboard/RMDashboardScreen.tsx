@@ -34,7 +34,9 @@ import {
 } from '../../services/api';
 import HelperService from '../../utils/helpers';
 
-// Maps Angular route paths from API response → RN screen names
+// Maps Angular route paths from API response → RN screen names.
+// All target screens are registered in DashboardStack so navigation.navigate()
+// works within the same stack, providing an automatic back button.
 const routeMap: Record<string, string> = {
   '/tabs/pendingsalesorder': 'PendingSalesOrder',
   '/tabs/todaysalesorder': 'TodaySalesOrder',
@@ -86,18 +88,20 @@ const RMDashboardScreen = () => {
     setDashboardData([]);
     const vendor = vendors.find(v => v.ID.toString() === value.toString());
     await setSelectedVendor(value.toString(), vendor?.Name ?? '');
+    // await handleRefresh(); //auto refresh on vendor change
   };
 
   const handleRefresh = async () => {
     console.log('[RMDashboard] Refresh pressed, vendor:', selectedVendor);
-    if (!sessionToken || !selectedVendor || selectedVendor === '0') {
-      HelperService.showAlert('', 'Please select a vendor first.');
+    if (!sessionToken || !selectedVendor) {
+      HelperService.showAlert('Alert', 'Please select a vendor first.');
       return;
     }
     setIsLoading(true);
     try {
       const res = await RMDashboardData(sessionToken, selectedVendor);
       if (res.IsSuccess) {
+        console.log('RM Dashboard data received:', res.Data);
         setDashboardData(res.Data);
       } else {
         HelperService.showAlert('Error', res.Msg);
@@ -267,7 +271,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#eee',
   },
   nsoBtn: {
-    backgroundColor: '#eb445a',
+    backgroundColor: '#f33e3e',
     margin: 10,
     borderRadius: 8,
     paddingVertical: 12,

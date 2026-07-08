@@ -314,11 +314,14 @@ For transient parameters, the application relies on route parameters:
 
 ## ⚙ Environment Configuration & Build Setup
 
-The base path of the web API is defined in [`.env`](file:///d:/VMS_GATI_App/.env) file located at the project root:
+The base path and app version header are defined in [`.env`](file:///d:/VMS_GATI_App/.env) at the project root:
 ```properties
-API_URL= 'http://122.185.131.170:224/api/'
+API_URL=http://122.185.131.170:224/api/
+APP_VERSION=1.0.18
 ```
 The application loads this config at runtime using `react-native-config` (`import Config from 'react-native-config';`).
+
+For UAT/Live parity, keep separate env files (for example, `.env.uat` and `.env.live`) and set `APP_VERSION` per environment to match backend minimum version policy.
 
 ### Native Prerequisites
 1.  **Node.js**: Version `>=20`

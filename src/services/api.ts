@@ -18,7 +18,7 @@ import axios from 'axios';
 import Config from 'react-native-config';
 
 const BASE_PATH = Config.API_URL;
-// const BASE_PATH = 'http://122.185.131.170:224/api/';
+// const BASE_PATH = 'http://122.185.131.170:222/api/';
 const CURRENT_VERSION = '1.0.18';
 
 export interface ApiResponse {
@@ -42,7 +42,7 @@ const defaultHeaders = {
 async function apiGet(url: string, headers: Record<string, string>): Promise<ApiResponse> {
     console.log('[API GET] →', url);
     const response = await axios.get<ApiResponse>(url, { headers });
-    console.log('[API GET] ←', url, '| status:', response.status, '| IsSuccess:', response.data?.IsSuccess);
+    console.log('[API GET Response] ←', url, '| status:', response);
     return response.data;
 }
 

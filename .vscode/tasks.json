@@ -1,0 +1,35 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run Android App",
+			"type": "shell",
+			"command": "npx react-native run-android",
+			"isBackground": false
+		},
+		{
+			"label": "Refresh NPM Dependencies",
+			"type": "shell",
+			"command": "npm install --include=dev",
+			"isBackground": false
+		},
+		{
+			"label": "Check Run Android Options",
+			"type": "shell",
+			"command": "npx react-native run-android --help",
+			"isBackground": false
+		},
+		{
+			"label": "Kill Port 8081 Process",
+			"type": "shell",
+			"command": "powershell -NoProfile -Command \"$conn = Get-NetTCPConnection -LocalPort 8081 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1; if ($conn) { Stop-Process -Id $conn.OwningProcess -Force; Write-Output ('Killed PID ' + $conn.OwningProcess) } else { Write-Output 'No listener on 8081' }\"",
+			"isBackground": false
+		},
+		{
+			"label": "Run Android No Packager",
+			"type": "shell",
+			"command": "npx react-native run-android --no-packager",
+			"isBackground": false
+		}
+	]
+}

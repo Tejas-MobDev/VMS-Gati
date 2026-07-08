@@ -93,8 +93,8 @@ const styles = StyleSheet.create({
     list: { padding: 12 },
     countBadge: {
         backgroundColor: '#3880ff',
-        alignSelf: 'flex-start',
-        borderRadius: 16,
+        alignSelf: 'flex-end',
+        borderRadius: 8,
         paddingHorizontal: 14,
         paddingVertical: 5,
         marginBottom: 10,

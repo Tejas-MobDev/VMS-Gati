@@ -12,22 +12,17 @@
  * - Reset flags on screen focus (mirrors ionViewWillEnter)
  * - Search filters by Name or ChassisNumber
  */
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
-  Alert,
   FlatList,
   TextInput,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import {
-  useFocusEffect,
-  useNavigation,
-  useIsFocused,
-} from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAppContext } from '../../context/AppContext';
 import {
   GetCurrentSLRequestedForRM,
@@ -41,8 +36,6 @@ type TabType = 'Hold' | 'Requested' | 'In Progress';
 
 const SLCurrentUpdatesScreen = () => {
   const { sessionToken, selectedVendorId, selectedRMId } = useAppContext();
-  const navigation = useNavigation<any>();
-  const isFocused = useIsFocused();
 
   const [activeTab, setActiveTab] = useState<TabType>('Hold');
   const [searchText, setSearchText] = useState('');
@@ -56,28 +49,37 @@ const SLCurrentUpdatesScreen = () => {
   const [requestedLoaded, setRequestedLoaded] = useState(false);
   const [holdLoaded, setHoldLoaded] = useState(false);
   const [inProgressLoaded, setInProgressLoaded] = useState(false);
-  const [focusRefreshToken, setFocusRefreshToken] = useState(0);
-  const lastHandledFocusRefreshToken = useRef(0);
 
-  // Reset cache/search on focus and reload the currently active tab.
+  // Reset on screen focus (mirrors ionViewWillEnter)
   useFocusEffect(
     useCallback(() => {
       setRequestedLoaded(false);
       setHoldLoaded(false);
       setInProgressLoaded(false);
       setSearchText('');
-      setFocusRefreshToken(prev => prev + 1);
+      setActiveTab('Hold');
     }, []),
   );
 
-  const loadTabData = async (tab: TabType, forceRefresh = false) => {
-    if (!forceRefresh && tab === 'Requested' && requestedLoaded) {
+  // Load data for active tab when it changes
+  useFocusEffect(
+    useCallback(() => {
+      if (!sessionToken) {
+        return;
+      }
+      loadTabData(activeTab);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, sessionToken]),
+  );
+
+  const loadTabData = async (tab: TabType) => {
+    if (tab === 'Requested' && requestedLoaded) {
       return;
     }
-    if (!forceRefresh && tab === 'Hold' && holdLoaded) {
+    if (tab === 'Hold' && holdLoaded) {
       return;
     }
-    if (!forceRefresh && tab === 'In Progress' && inProgressLoaded) {
+    if (tab === 'In Progress' && inProgressLoaded) {
       return;
     }
 
@@ -128,46 +130,6 @@ const SLCurrentUpdatesScreen = () => {
     }
   };
 
-  React.useEffect(() => {
-    if (!isFocused || !sessionToken) {
-      return;
-    }
-
-    const shouldForceRefresh =
-      focusRefreshToken !== lastHandledFocusRefreshToken.current;
-    loadTabData(activeTab, shouldForceRefresh);
-    if (shouldForceRefresh) {
-      lastHandledFocusRefreshToken.current = focusRefreshToken;
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, sessionToken, isFocused, focusRefreshToken]);
-
-  const navigateToAttachDocs = (slid: string) => {
-    const routeNames = navigation.getState?.()?.routeNames ?? [];
-
-    if (routeNames.includes('AttachNewDocs')) {
-      navigation.navigate('AttachNewDocs', { SLID: slid });
-      return;
-    }
-
-    navigation.getParent()?.navigate('SalesLetterTab', {
-      screen: 'AttachNewDocs',
-      params: { SLID: slid },
-    });
-  };
-
-  const handleHoldCardPress = (item: any) => {
-    const statusId = Number(item?.Statusid);
-    if (statusId === 59 || statusId === 43) {
-      navigateToAttachDocs(String(item?.Id ?? ''));
-      return;
-    }
-
-    const stat = item?.Stat ?? '';
-    const remark = item?.Remark ?? '';
-    Alert.alert('Current status', `${stat}(${remark})`);
-  };
-
   const getActiveList = (): any[] => {
     let base: any[] = [];
     if (activeTab === 'Requested') {
@@ -189,8 +151,8 @@ const SLCurrentUpdatesScreen = () => {
     );
   };
 
-  const renderCardContent = (item: any) => (
-    <>
+  const renderItem = ({ item }: { item: any }) => (
+    <View style={styles.card}>
       <Text style={styles.dealerName}>{item.Name}</Text>
       <Text style={styles.detail}>Chassis: {item.ChassisNumber}</Text>
       <Text style={styles.detail}>Engine: {item.EngineNumber}</Text>
@@ -210,24 +172,8 @@ const SLCurrentUpdatesScreen = () => {
       <Text style={[styles.detail, { color: 'red', fontWeight: 'bold' }]}>
         {item.Remark}
       </Text>
-    </>
+    </View>
   );
-
-  const renderItem = ({ item }: { item: any }) => {
-    if (activeTab === 'Hold') {
-      return (
-        <TouchableOpacity
-          style={styles.card}
-          activeOpacity={0.8}
-          onPress={() => handleHoldCardPress(item)}
-        >
-          {renderCardContent(item)}
-        </TouchableOpacity>
-      );
-    }
-
-    return <View style={styles.card}>{renderCardContent(item)}</View>;
-  };
 
   const displayList = getActiveList();
 
@@ -242,6 +188,7 @@ const SLCurrentUpdatesScreen = () => {
             onPress={() => {
               console.log('[SLCurrentUpdates] Tab switched to:', tab);
               setActiveTab(tab);
+              loadTabData(tab);
             }}
           >
             <Text

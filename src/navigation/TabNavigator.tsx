@@ -8,12 +8,14 @@
  *
  * Icons: react-native-vector-icons/Ionicons mirrors Ionic icon names.
  */
+
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { TabParamList } from './types';
 import { useAppContext } from '../context/AppContext';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 // Dashboard stack screens
 import RMDashboardScreen from '../screens/RMDashboard/RMDashboardScreen';
@@ -41,6 +43,7 @@ import ServiceBookStatusScreen from '../screens/ServiceBookStatus/ServiceBookSta
 import HSRPNumberPendingScreen from '../screens/HSRPNumberPending/HSRPNumberPendingScreen';
 import AttachNewDocsScreen from '../screens/AttachNewDocs/AttachNewDocsScreen';
 import AddDocumentModalScreen from '../screens/AddDocumentModal/AddDocumentModalScreen';
+import { TouchableOpacity } from 'react-native';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 const DashboardStack = createNativeStackNavigator();
@@ -48,7 +51,16 @@ const SalesOrderStack = createNativeStackNavigator();
 const PaymentStack = createNativeStackNavigator();
 const SalesLetterStack = createNativeStackNavigator();
 
+const HeaderBgColor: string = '#f5f0f0ff';
+const headerText: string = '#000';
+
 // ─── Dashboard Stack ──────────────────────────────────────────────────────────
+// All screens reachable from the RM/ASM dashboard are registered here.
+// This ensures:
+//   1. A back button is shown automatically (same stack).
+//   2. Other tabs (SalesOrderTab, PaymentTab, etc.) are never affected, so
+//      tapping them always shows their own dashboard screen.
+
 const DashboardStackNavigator = () => {
   const { designation, employeeName } = useAppContext();
   const InitialDashboard =
@@ -58,23 +70,39 @@ const DashboardStackNavigator = () => {
     <DashboardStack.Navigator
       screenOptions={({ route }) => ({
         headerShown: true,
-        headerTintColor: '#000',
-        headerStyle: { backgroundColor: '#38e8ff' },
-        headerTitleStyle: { fontWeight: 'bold' },
+        headerTintColor: headerText,
+        headerStyle: { backgroundColor: HeaderBgColor }, //#38e8ff
+        // //headerTitleStyle: { fontWeight: 'bold' },
         headerTitleAlign: 'center',
         headerBackTitleVisible: false,
 
-        tabBarActiveTintColor: '#38e8ff',
+        tabBarActiveTintColor: HeaderBgColor,
         tabBarInactiveTintColor: '#999',
+        //HIDE: logout button on Top-Right corner of dashboard screen
+        // headerRight: () => (
+        //   <TouchableOpacity
+        //     onPress={() => {
+        //       console.log('Logout pressed');
+        //     }}
+        //     style={{ marginRight: 15 }}
+        //   >
+        //     <MaterialIcons name="logout" size={24} color="#000" />
+        //   </TouchableOpacity>
+        // ),
       })}
     >
+      {/* ── Root dashboard (RM or ASM) ── */}
       <DashboardStack.Screen
         name={designation === 'RM' ? 'RMDashboard' : 'ASMDashboard'}
         component={InitialDashboard}
         options={{
-          title: "Hello " + employeeName || (designation === 'RM' ? 'RM Dashboard' : 'ASM Dashboard'),
+          title:
+            // 'Hello ' + employeeName ||
+            designation === 'RM' ? 'RM Dashboard' : 'ASM Dashboard',
         }}
       />
+
+      {/* ── Screens already owned by the dashboard tab ── */}
       <DashboardStack.Screen
         name="VendorsWithoutSalesOrder"
         component={VendorsWithoutSalesOrderScreen}
@@ -85,6 +113,62 @@ const DashboardStackNavigator = () => {
         component={PendingPaymentFiveDaysOldScreen}
         options={{ title: 'Payment Pending 5+ Days' }}
       />
+
+      {/* ── Sales Order screens navigable from dashboard ── */}
+      <DashboardStack.Screen
+        name="PendingSalesOrder"
+        component={PendingSalesOrderScreen}
+        options={{ title: 'Pending Sales Order' }}
+      />
+      <DashboardStack.Screen
+        name="TodaySalesOrder"
+        component={TodaySalesOrderScreen}
+        options={{ title: "Today's Sales Order" }}
+      />
+
+      {/* ── Payment screens navigable from dashboard ── */}
+      <DashboardStack.Screen
+        name="PendingPayment"
+        component={PendingPaymentScreen}
+        options={{ title: 'Pending Payment' }}
+      />
+      <DashboardStack.Screen
+        name="PaymentRecFromVendor"
+        component={PaymentRecFromVendorScreen}
+        options={{ title: 'Receive Payment' }}
+      />
+      <DashboardStack.Screen
+        name="PaymentRecWithoutAmt"
+        component={PaymentRecWithoutAmtScreen}
+        options={{ title: 'Receive Blank Cheque' }}
+      />
+
+      {/* ── Sales Letter screens navigable from dashboard ── */}
+      <DashboardStack.Screen
+        name="PendingSalesLetter"
+        component={PendingSalesLetterScreen}
+        options={{ title: 'SL Request Pending' }}
+      />
+      <DashboardStack.Screen
+        name="SLCurrentUpdates"
+        component={SLCurrentUpdatesScreen}
+        options={{ title: 'SL Current Updates' }}
+      />
+      <DashboardStack.Screen
+        name="SLRecByRM"
+        component={SLRecByRMScreen}
+        options={{ title: 'Receive Sales Letter' }}
+      />
+      <DashboardStack.Screen
+        name="ServiceBookStatus"
+        component={ServiceBookStatusScreen}
+        options={{ title: 'Service Book Status' }}
+      />
+      <DashboardStack.Screen
+        name="HSRPNumberPending"
+        component={HSRPNumberPendingScreen}
+        options={{ title: 'HSRP Pending' }}
+      />
     </DashboardStack.Navigator>
   );
 };
@@ -94,13 +178,13 @@ const SalesOrderStackNavigator = () => (
   <SalesOrderStack.Navigator
     screenOptions={({ route }) => ({
       headerShown: true,
-      headerTintColor: '#000',
-      headerStyle: { backgroundColor: '#38e8ff' },
-      headerTitleStyle: { fontWeight: 'bold' },
+      headerTintColor: headerText,
+      headerStyle: { backgroundColor: HeaderBgColor },
+      //headerTitleStyle: { fontWeight: 'bold' },
       headerTitleAlign: 'center',
       headerBackTitleVisible: false,
 
-      tabBarActiveTintColor: '#38e8ff',
+      tabBarActiveTintColor: HeaderBgColor,
       tabBarInactiveTintColor: '#999',
     })}
   >
@@ -132,13 +216,13 @@ const PaymentStackNavigator = () => (
   <PaymentStack.Navigator
     screenOptions={({ route }) => ({
       headerShown: true,
-      headerTintColor: '#000',
-      headerStyle: { backgroundColor: '#38e8ff' },
-      headerTitleStyle: { fontWeight: 'bold' },
+      headerTintColor: headerText,
+      headerStyle: { backgroundColor: HeaderBgColor },
+      //headerTitleStyle: { fontWeight: 'bold' },
       headerTitleAlign: 'center',
       headerBackTitleVisible: false,
 
-      tabBarActiveTintColor: '#38e8ff',
+      tabBarActiveTintColor: HeaderBgColor,
       tabBarInactiveTintColor: '#999',
     })}
   >
@@ -170,13 +254,13 @@ const SalesLetterStackNavigator = () => (
   <SalesLetterStack.Navigator
     screenOptions={({ route }) => ({
       headerShown: true,
-      headerTintColor: '#000',
-      headerStyle: { backgroundColor: '#38e8ff' },
-      headerTitleStyle: { fontWeight: 'bold' },
+      headerTintColor: headerText,
+      headerStyle: { backgroundColor: HeaderBgColor },
+      //headerTitleStyle: { fontWeight: 'bold' },
       headerTitleAlign: 'center',
       headerBackTitleVisible: false,
 
-      tabBarActiveTintColor: '#38e8ff',
+      tabBarActiveTintColor: HeaderBgColor,
       tabBarInactiveTintColor: '#999',
     })}
   >
@@ -229,7 +313,7 @@ const TabNavigator = () => (
     screenOptions={({ route }) => ({
       headerShown: false,
       tabBarActiveTintColor: '#3880ff',
-      tabBarInactiveTintColor: '#999',
+      tabBarInactiveTintColor: '#000000',
       //   tabBarActiveLabelStyle: {
       //     fontSize: 12,
       //     fontWeight: 'bold', // or '700'
