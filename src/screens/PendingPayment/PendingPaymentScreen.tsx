@@ -143,22 +143,21 @@ const PendingPaymentScreen = () => {
           {/* {index + 1}. {item.InternalVendorName} */}
         </Text>
         <Text style={styles.detail}>
-          Allotted on: {dateTimeSplit(item.AllotmentDateOn)}. Aging:{' '}
+          Allotted on: {dateTimeSplit(item.AllotmentDateOn)}. Aging:{' | '}
           {item.Aging}
         </Text>
         <Text style={styles.detail}>
-          Dispatched on: {dateTimeSplit(item.VehicleDispatchedOn)}. Aging:{' '}
+          Dispatched on: {dateTimeSplit(item.VehicleDispatchedOn)}. Aging:
+          {' | '}
           {item.SalesOrderDt_DispatchDate_Aging}
         </Text>
-        <Text style={styles.detail}>
-          Chassis: {item.ChessisNo}, Engine: {item.EngineNo}
-        </Text>
+        <Text style={styles.detail}>Chassis No : {item.ChessisNo}</Text>
+        <Text style={styles.detail}>Engine No : {item.EngineNo}</Text>
         <Text style={styles.detail}>
           {item.ProductName}, {item.ColorName}
         </Text>
-        <Text style={styles.detail}>
-          Paid: {item.PaidTillNow} | Pending: {item.Balance}
-        </Text>
+        <Text style={styles.detail}>Paid: {item.PaidTillNow}</Text>
+        <Text style={styles.detail}>Pending: {item.Balance}</Text>
         <Text style={styles.detail}>{item.InternalCompanyName}</Text>
         <TextInput
           style={styles.remarkInput}

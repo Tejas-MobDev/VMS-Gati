@@ -102,6 +102,16 @@ const ServiceBookStatusScreen = () => {
   };
 
   const handleMarkReceived = async (item: any) => {
+    const statusEntryId = item?.SLStatusID ?? item?.SalesletterStats_ID;
+
+    if (!statusEntryId) {
+      HelperService.showAlert(
+        'Error',
+        'Unable to mark received. Missing service book status identifier.',
+      );
+      return;
+    }
+
     console.log(
       '[ServiceBookStatus] Mark Received pressed for:',
       item.Name,
@@ -114,14 +124,16 @@ const ServiceBookStatusScreen = () => {
       async () => {
         setIsLoading(true);
         try {
-          const res = await ServiceBookRecByRMForRM(
-            item.SalesletterStats_ID,
-            sessionToken!,
-          );
+          const res = await ServiceBookRecByRMForRM(statusEntryId, sessionToken!);
           if (res.IsSuccess) {
             setPendingList(prev =>
               prev.filter(
-                d => d.SalesletterStats_ID !== item.SalesletterStats_ID,
+                d => (d?.SLStatusID ?? d?.SalesletterStats_ID) !== statusEntryId,
+              ),
+            );
+            setRecList(prev =>
+              prev.filter(
+                d => (d?.SLStatusID ?? d?.SalesletterStats_ID) !== statusEntryId,
               ),
             );
             HelperService.showAlert('Success!', res.Msg);

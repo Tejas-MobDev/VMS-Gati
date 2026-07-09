@@ -207,7 +207,16 @@ const SLCurrentUpdatesScreen = () => {
       <Text style={styles.detail}>
         Updated on: {new Date(item.CreatedDate).toLocaleDateString('en-GB')}
       </Text>
-      <Text style={[styles.detail, { color: 'red', fontWeight: 'bold' }]}>
+      <Text
+        style={[
+          styles.remarkText,
+          activeTab === 'Hold'
+            ? Number(item?.Statusid) === 59
+              ? styles.remarkRed
+              : styles.remarkGreen
+            : styles.remarkDefault,
+        ]}
+      >
         {item.Remark}
       </Text>
     </>
@@ -358,6 +367,14 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   detail: { fontSize: 13, color: '#555', marginBottom: 2 },
+  remarkText: {
+    fontSize: 13,
+    marginBottom: 2,
+    fontWeight: '700',
+  },
+  remarkRed: { color: '#d32f2f' },
+  remarkGreen: { color: '#2e7d32' },
+  remarkDefault: { color: '#3880ff' },
   emptyText: { textAlign: 'center', color: '#aaa', marginTop: 40 },
 });
 

@@ -53,6 +53,7 @@ const AttachNewDocsScreen = () => {
   const { sessionToken } = useAppContext();
 
   const [docs, setDocs] = useState<any[]>([]);
+  const [addedDocs, setAddedDocs] = useState<any[]>([]);
   const [remark, setRemark] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [existingDocsLength, setExistingDocsLength] = useState(0);
@@ -65,8 +66,6 @@ const AttachNewDocsScreen = () => {
     if (!sessionToken) {
       return;
     }
-    setDocs([]);
-    setRemark('');
     setIsLoading(true);
     try {
       const [docsRes, validationRes] = await Promise.all([
@@ -97,16 +96,18 @@ const AttachNewDocsScreen = () => {
 
   useFocusEffect(
     useCallback(() => {
-      if (route.params?.newDoc) {
-        return;
+      if (docs.length === 0) {
+        loadData();
       }
-      loadData();
       console.log(
-        '[AttachNewDocs]  Data of selected document :',
-        loadData,
+        '[AttachNewDocs] Focused | SLID:',
         SLID,
+        '| existing docs:',
+        docs.length,
+        '| added docs:',
+        addedDocs.length,
       );
-    }, [loadData, route.params?.newDoc]),
+    }, [loadData, SLID, docs.length, addedDocs.length]),
   );
 
   // Listen for data returned from AddDocumentModal
@@ -118,7 +119,8 @@ const AttachNewDocsScreen = () => {
     }
 
     const newDoc = params.newDoc;
-    setDocs(prev => [
+    console.log('[AttachNewDocs] Received newDoc from modal:', newDoc);
+    setAddedDocs(prev => [
       ...prev,
       {
         SalesLetterID: SLID,
@@ -126,6 +128,7 @@ const AttachNewDocsScreen = () => {
         Document_ID: newDoc.Document_ID,
         DocSubName: newDoc.DocSubName,
         DocumentURL: newDoc.DocBase64Str,
+        DocBase64Str: newDoc.DocBase64Str,
         Str_ProofName: newDoc.ProofNameStr,
         Str_SLDoctyp_DocSubName: newDoc.DocSubNameStr,
       },
@@ -146,13 +149,28 @@ const AttachNewDocsScreen = () => {
   };
 
   const handleSubmit = async () => {
+    const docsForSubmit = [...docs, ...addedDocs].map(item => ({
+      SalesLetterID: item.SalesLetterID ?? SLID,
+      ProofName: item.ProofName,
+      DocSubName: item.DocSubName,
+      Document_ID: item.Document_ID ?? '',
+      DocBase64Str:
+        item.DocBase64Str ??
+        (typeof item.DocumentURL === 'string' &&
+        !item.DocumentURL.startsWith(API_IP)
+          ? item.DocumentURL
+          : ''),
+      Str_ProofName: item.Str_ProofName ?? '',
+      Str_SLDoctyp_DocSubName: item.Str_SLDoctyp_DocSubName ?? '',
+    }));
+
     console.log(
       '[AttachNewDocs] Submit pressed | SLID:',
       SLID,
       '| remark:',
       remark,
       '| docs count:',
-      docs.length,
+      docsForSubmit.length,
     );
     if (!sessionToken) {
       return;
@@ -162,16 +180,20 @@ const AttachNewDocsScreen = () => {
       const payload = {
         SalesLetterID: SLID,
         Remark: remark,
-        DocsList: docs,
+        DocsList: docsForSubmit,
       };
-      const res = await SaveAdditionalSLDocs(sessionToken, payload);
-      if (res.IsSuccess) {
-        HelperService.showAlert('Success!!!', res.Data ?? res.Msg, () => {
-          navigation.navigate('SLCurrentUpdates');
-        });
-      } else {
-        HelperService.showAlert('Error occurred', res.Data ?? res.Msg);
-      }
+      console.log(
+        '[AttachNewDocs] Submitting payload:',
+        JSON.stringify(payload),
+      );
+      // const res = await SaveAdditionalSLDocs(sessionToken, payload);
+      // if (res.IsSuccess) {
+      //   HelperService.showAlert('Success!!!', res.Data ?? res.Msg, () => {
+      //     navigation.navigate('SLCurrentUpdates');
+      //   });
+      // } else {
+      //   HelperService.showAlert('Error occurred', res.Data ?? res.Msg);
+      // }
     } catch (e: any) {
       const msg =
         e?.message?.includes('Http failure') || e?.message?.includes('fetch')
@@ -183,7 +205,8 @@ const AttachNewDocsScreen = () => {
     }
   };
 
-  const isSubmitDisabled = remark === '' && docs.length <= existingDocsLength;
+  const mergedDocs = [...docs, ...addedDocs];
+  const isSubmitDisabled = remark === '' && addedDocs.length === 0;
 
   const renderDoc = ({ item }: { item: any }) => {
     const url: string = item.DocumentURL ?? '';
@@ -225,7 +248,7 @@ const AttachNewDocsScreen = () => {
         <ActivityIndicator style={styles.loader} size="large" color="#3880ff" />
       ) : (
         <FlatList
-          data={docs}
+          data={mergedDocs}
           keyExtractor={(_, i) => i.toString()}
           renderItem={renderDoc}
           numColumns={2}

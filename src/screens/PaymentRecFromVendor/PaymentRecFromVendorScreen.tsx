@@ -93,6 +93,11 @@ const formatDateToYmd = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
+const toNumberOrZero = (value: any) => {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : 0;
+};
+
 const PaymentRecFromVendorScreen = () => {
   const navigation = useNavigation<any>();
   const { sessionToken, selectedVendorId, selectedVendorName, designation } =
@@ -598,13 +603,14 @@ const PaymentRecFromVendorScreen = () => {
 
     // Check duplicate cheque/payment number
     if (f.ChqNeft_Number && f.PaymentMode) {
+      const acNo = f.AccountNumberForDD || f.AccountNumberForText;
       setIsLoading(true);
       try {
         const chkRes = await IsChequOrPaymentNumberAvail(
           sessionToken!,
           f.PaymentMode,
           f.VendorID,
-          f.Acc_No,
+          acNo,
           f.ChqNEFTOfBankNameMasterID,
           f.ChqNeft_Number,
         );
@@ -650,13 +656,37 @@ const PaymentRecFromVendorScreen = () => {
     setIsLoading(true);
     const f = form;
     const accNo = f.AccountNumberForDD || f.AccountNumberForText;
+
+    const selectedVehicleData = vehicleList
+      .filter(v => v.IsChecked)
+      .map(v => ({
+        ...v,
+        IsChecked: true,
+        PaymentRec_AfterPostBack: toNumberOrZero(v.PaymentRec_AfterPostBack),
+      }));
+
+    const selectedEpaymentData = epaymentList
+      .filter(e => e.IsChecked)
+      .map(e => ({
+        ...e,
+        IsChecked: true,
+        PaymentRec_AfterPostBack: toNumberOrZero(e.PaymentRec_AfterPostBack),
+      }));
+
     const payload = {
-      ...f,
-      Acc_No: accNo,
-      RecievedAmt: parseFloat(f.RecievedAmt) || 0,
-      AdvanceRecieved: parseFloat(f.AdvanceRecieved) || 0,
-      SelectedVehicleData: vehicleList.filter(v => v.IsChecked),
-      SelectedEpaymentData: epaymentList.filter(e => e.IsChecked),
+      VendorAndBankdetails: {
+        ...f,
+        VendorID: String(f.VendorID || selectedVendorId || ''),
+        PaymentMode: String(f.PaymentMode || ''),
+        Acc_No: accNo,
+        RecievedAmt: toNumberOrZero(f.RecievedAmt),
+        AdvanceRecieved: toNumberOrZero(f.AdvanceRecieved),
+        PaymentRecInCompany: String(f.PaymentRecInCompany || ''),
+        DirectPaymentToAuth: Boolean(f.DirectPaymentToAuth),
+      },
+      SalesOrderPaymentRecList: selectedVehicleData,
+      EpaymentSalesOrderPaymentRecList: selectedEpaymentData,
+      AdjustedAmount: toNumberOrZero(adjustedAmount),
     };
     try {
       const res = await ReceivedPaymentFromVendor(payload, sessionToken!);
@@ -697,7 +727,7 @@ const PaymentRecFromVendorScreen = () => {
               onPress={() => onCompanySelect(item)}
             >
               <Text style={styles.companyName}>{item.CompanyName}</Text>
-              <Text style={styles.companyBadge}>{item.TotalBalance}</Text>
+              <Text style={styles.companyBadge}>{item.SumOfMoneyPending}</Text>
             </TouchableOpacity>
           )}
           ListEmptyComponent={
@@ -783,10 +813,10 @@ const PaymentRecFromVendorScreen = () => {
         </View>
         <View style={styles.navButtons}>
           <TouchableOpacity style={styles.prevBtn} onPress={() => setStep(0)}>
-            <Text style={styles.btnText}>← Back</Text>
+            <Text style={styles.btnText}>Previous</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.nextBtn} onPress={() => setStep(2)}>
-            <Text style={styles.btnText}>Next →</Text>
+            <Text style={styles.btnText}>Next</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -1099,10 +1129,10 @@ const PaymentRecFromVendorScreen = () => {
 
         <View style={styles.navButtons}>
           <TouchableOpacity style={styles.prevBtn} onPress={() => setStep(1)}>
-            <Text style={styles.btnText}>← Back</Text>
+            <Text style={styles.btnText}>Previous</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.nextBtn} onPress={validateAndNext}>
-            <Text style={styles.btnText}>Review →</Text>
+            <Text style={styles.btnText}>Review</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -1138,10 +1168,10 @@ const PaymentRecFromVendorScreen = () => {
 
       <View style={styles.navButtons}>
         <TouchableOpacity style={styles.prevBtn} onPress={() => setStep(2)}>
-          <Text style={styles.btnText}>← Back</Text>
+          <Text style={styles.btnText}>Back</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
-          <Text style={styles.btnText}>Submit ✓</Text>
+          <Text style={styles.btnText}>Submit</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -1235,7 +1265,7 @@ const styles = StyleSheet.create({
   },
   submitBtn: {
     flex: 1,
-    backgroundColor: '#2dd36f',
+    backgroundColor: '#0e9444',
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',

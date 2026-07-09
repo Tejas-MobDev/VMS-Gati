@@ -202,7 +202,10 @@ const AddDocumentModalScreen = () => {
     }
 
     // Pass data back to the exact previous route, then close modal.
-    console.log('Data passing to return screen:', newDocData);
+    console.log(
+      '[AddDocumentModal] Data passing to return screen:',
+      JSON.stringify(newDocData),
+    );
     if (returnRouteKey) {
       navigation.dispatch(
         CommonActions.setParams({

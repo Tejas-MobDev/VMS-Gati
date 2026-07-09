@@ -109,9 +109,10 @@ const PaymentRecWithoutAmtScreen = () => {
       )
         .then(res => {
           if (res.IsSuccess) {
+            console.log('[Blank Cheque] data : ', res.Data);
             setPaymentModeList(res.Data.m_Item2?.[0] ?? []);
-            setBankNameList(res.Data.m_Item2?.[3] ?? []);
-            setBankAccountTypeList(res.Data.m_Item2?.[4] ?? []);
+            setBankNameList(res.Data.m_Item2?.[1] ?? []);
+            setBankAccountTypeList(res.Data.m_Item2?.[2] ?? []);
             setCompanies(res.Data.m_Item1 ?? []);
           } else {
             HelperService.showAlert('Error', res.Msg);
@@ -152,6 +153,7 @@ const PaymentRecWithoutAmtScreen = () => {
       JSON.stringify(company.PaymentPendingListOfEpayment ?? []),
     ).map((e: any) => ({ ...e, IsChecked: false }));
     setEpaymentList(epayments);
+    console.log('[PaymentRecWithoutAmt] Epayment list:', epayments);
     setForm({
       ...emptyForm(),
       VendorID: selectedVendorId,
@@ -281,22 +283,34 @@ const PaymentRecWithoutAmtScreen = () => {
       HelperService.showAlert('Error', 'Please enter all Details.');
       return;
     }
-    setStep(2);
+    setStep(3);
   };
 
   const handleSubmit = async () => {
-    console.log(
-      '[PaymentRecWithoutAmt] Submit pressed | payload form:',
-      JSON.stringify(form),
-    );
     setIsLoading(true);
     const f = form;
+    const accNo = f.AccountNumberForDD || f.AccountNumberForText;
     const payload = {
-      ...f,
-      Acc_No: f.AccountNumberForDD || f.AccountNumberForText,
-      SelectedEpaymentData: epaymentList.filter(e => e.IsChecked),
+      VendorAndBankdetails: {
+        ...f,
+        VendorID: String(f.VendorID || selectedVendorId || ''),
+        PaymentMode: String(f.PaymentMode || ''),
+        PaymentRecInCompany: String(f.PaymentRecInCompany || ''),
+        DirectPaymentToAuth: Boolean(f.DirectPaymentToAuth),
+        Acc_No: accNo,
+      },
+      EpaymentSalesOrderPaymentRecList: epaymentList
+        .filter(e => e.IsChecked)
+        .map(e => ({
+          ...e,
+          IsChecked: true,
+        })),
     };
     try {
+      console.log(
+        '[PaymentRecWithoutAmt] Submit pressed | payload form:',
+        payload,
+      );
       const res = await GetReceivedPaymentWithoutAmountFromVendor(
         payload,
         sessionToken!,
@@ -337,6 +351,11 @@ const PaymentRecWithoutAmtScreen = () => {
               onPress={() => onCompanySelect(item)}
             >
               <Text style={styles.companyName}>{item.CompanyName}</Text>
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {item.SumOfMoneyPendingOfEpayment ?? 0}
+                </Text>
+              </View>
             </TouchableOpacity>
           )}
           ListEmptyComponent={
@@ -358,18 +377,33 @@ const PaymentRecWithoutAmtScreen = () => {
         {epaymentList.map((item, idx) => (
           <View key={idx} style={styles.selectionCard}>
             <View style={styles.selectionRow}>
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={styles.cardTitle}>{item.InternalVendorName}</Text>
+                <Text style={styles.detail}>
+                  Dispatched On: {item.VehicleDispatchedDt}
+                </Text>
+                <Text style={styles.detail}>Aging: {item.Aging ?? 0}</Text>
+
+                <Text style={styles.detail}>Chassis No: {item.ChessisNo}</Text>
+                <Text style={styles.detail}>Engine No: {item.EngineNo}</Text>
+
+                <Text style={styles.detail}>
+                  {item.ProductName}, {item.ColorName}
+                </Text>
+                <Text style={styles.detail}>{item.StrSalesType}</Text>
+                <Text style={styles.detail}>
+                  Approx Epayment: {item.TotalEpaymentRecAmt ?? 0}
+                </Text>
+                <Text style={styles.detail}>
+                  Paid till Now: {item.PaidTillNow ?? 0}
+                </Text>
+                <Text style={styles.detail}>Pending : {item.Balance}</Text>
+              </View>
               <Switch
                 value={item.IsChecked}
                 onValueChange={v => toggleEpayment(idx, v)}
                 // trackColor={{ true: '#3880ff' }}
               />
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.cardTitle}>{item.InternalVendorName}</Text>
-                <Text style={styles.detail}>Chassis: {item.ChessisNo}</Text>
-                <Text style={styles.detail}>
-                  {item.ProductName}, {item.ColorName}
-                </Text>
-              </View>
             </View>
           </View>
         ))}
@@ -393,6 +427,7 @@ const PaymentRecWithoutAmtScreen = () => {
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.formContent}
+        keyboardShouldPersistTaps="handled"
       >
         <Text style={styles.sectionTitle}>Cheque Details</Text>
 
@@ -502,6 +537,7 @@ const PaymentRecWithoutAmtScreen = () => {
                 selectedValue={form.ChqNEFTOfBankNameMasterID}
                 onValueChange={v => setField('ChqNEFTOfBankNameMasterID', v)}
                 style={styles.picker}
+                mode={Platform.OS === 'android' ? 'dialog' : undefined}
               >
                 <Picker.Item label="Select Bank" value="" />
                 {bankNameList.map((b: any) => (
@@ -654,6 +690,9 @@ const styles = StyleSheet.create({
     borderBottomColor: '#eee',
   },
   companyItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     backgroundColor: '#fff',
     borderRadius: 8,
     padding: 14,
@@ -667,6 +706,15 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 10,
   },
+  badge: {
+    backgroundColor: '#3880ff',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    minWidth: 32,
+    alignItems: 'center',
+  },
+  badgeText: { color: '#fff', fontWeight: '700', fontSize: 13 },
   selectionCard: {
     backgroundColor: '#fff',
     borderRadius: 8,
@@ -699,7 +747,7 @@ const styles = StyleSheet.create({
   },
   submitBtn: {
     flex: 1,
-    backgroundColor: '#2dd36f',
+    backgroundColor: '#0e9444',
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
