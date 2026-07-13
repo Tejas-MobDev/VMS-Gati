@@ -13,11 +13,10 @@
  * - On success: navigate to SLCurrentUpdates
  *
  * MIGRATION DECISION:
- * Ionic ModalController → React Navigation modal stack screen.
+ * Ionic ModalController -> React Navigation modal stack screen.
  * Modal returns data via navigation params (useRoute after goBack).
- * We use a callback pattern via a shared ref or navigation state listener.
  */
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -45,7 +44,9 @@ import HelperService from '../../utils/helpers';
 
 const API_IP = 'http://122.185.131.170:223/';
 
-type AttachDocsRoute = { AttachNewDocs: { SLID: string; newDoc?: any } };
+type AttachDocsRoute = {
+  AttachNewDocs: { SLID: string; newDoc?: any };
+};
 
 const AttachNewDocsScreen = () => {
   const navigation = useNavigation<any>();
@@ -53,16 +54,18 @@ const AttachNewDocsScreen = () => {
   const { sessionToken } = useAppContext();
 
   const [docs, setDocs] = useState<any[]>([]);
-  const [addedDocs, setAddedDocs] = useState<any[]>([]);
   const [remark, setRemark] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [existingDocsLength, setExistingDocsLength] = useState(0);
   const compulsoryDocIDs = useRef<any[]>([]);
   const maxLengthDocIDList = useRef<any[]>([]);
+  const lastHandledDocKey = useRef('');
 
   const SLID = route.params?.SLID ?? '0';
 
   const loadData = useCallback(async () => {
+    console.log('[AttachNewDocs] Loading data...');
+
     if (!sessionToken) {
       return;
     }
@@ -77,7 +80,13 @@ const AttachNewDocsScreen = () => {
           ...d,
           DocumentURL: API_IP + d.DocumentURL,
         }));
-        setDocs(prefixed);
+        setDocs(prev => {
+          const localAddedDocs = prev.filter(
+            (doc: any) => !(doc?.DocumentURL ?? '').startsWith(API_IP),
+          );
+          return [...prefixed, ...localAddedDocs];
+        });
+        console.log('[AttachNewDocs] Loaded docs:', prefixed);
         setExistingDocsLength(prefixed.length);
       } else {
         HelperService.showAlert('Error', docsRes.Msg);
@@ -94,8 +103,43 @@ const AttachNewDocsScreen = () => {
     }
   }, [SLID, sessionToken]);
 
+  const appendReturnedDoc = useCallback(
+    (newDoc: any) => {
+      if (!newDoc) {
+        return;
+      }
+      const docKey = `${newDoc.ProofName}-${newDoc.DocSubName}-${newDoc.Document_ID}-${(newDoc.DocBase64Str ?? '').length}`;
+      if (docKey === lastHandledDocKey.current) {
+        return;
+      }
+
+      console.log('[AttachNewDocs] Appending returned newDoc:', newDoc);
+      setDocs(prev => [
+        ...prev,
+        {
+          SalesLetterID: SLID,
+          ProofName: newDoc.ProofName,
+          Document_ID: newDoc.Document_ID,
+          DocSubName: newDoc.DocSubName,
+          DocumentURL: newDoc.DocBase64Str,
+          DocBase64Str: newDoc.DocBase64Str,
+          Str_ProofName: newDoc.ProofNameStr,
+          Str_SLDoctyp_DocSubName: newDoc.DocSubNameStr,
+        },
+      ]);
+      lastHandledDocKey.current = docKey;
+      navigation.setParams({ newDoc: undefined });
+    },
+    [SLID, navigation],
+  );
+
   useFocusEffect(
     useCallback(() => {
+      const incomingDoc = (route.params as any)?.newDoc;
+      if (incomingDoc) {
+        appendReturnedDoc(incomingDoc);
+      }
+
       if (docs.length === 0) {
         loadData();
       }
@@ -104,62 +148,33 @@ const AttachNewDocsScreen = () => {
         SLID,
         '| existing docs:',
         docs.length,
-        '| added docs:',
-        addedDocs.length,
       );
-    }, [loadData, SLID, docs.length, addedDocs.length]),
+    }, [appendReturnedDoc, loadData, route.params, SLID, docs.length]),
   );
 
-  // Listen for data returned from AddDocumentModal
-  // Navigation state param 'newDoc' is set by modal on save
-  useEffect(() => {
-    const params = route.params as any;
-    if (!params?.newDoc) {
-      return;
-    }
-
-    const newDoc = params.newDoc;
-    console.log('[AttachNewDocs] Received newDoc from modal:', newDoc);
-    setAddedDocs(prev => [
-      ...prev,
-      {
-        SalesLetterID: SLID,
-        ProofName: newDoc.ProofName,
-        Document_ID: newDoc.Document_ID,
-        DocSubName: newDoc.DocSubName,
-        DocumentURL: newDoc.DocBase64Str,
-        DocBase64Str: newDoc.DocBase64Str,
-        Str_ProofName: newDoc.ProofNameStr,
-        Str_SLDoctyp_DocSubName: newDoc.DocSubNameStr,
-      },
-    ]);
-
-    // Clear the param so it doesn't re-add on next focus
-    navigation.setParams({ newDoc: undefined });
-  }, [route.params, SLID, navigation]);
-
   const openModal = () => {
-    console.log('[AttachNewDocs] Add Document button pressed | SLID:', SLID);
+    console.log(
+      '[AttachNewDocs] Add Document button pressed | SLID:',
+      SLID,
+    );
     navigation.navigate('AddDocumentModal', {
       compulsoryDocIDs: compulsoryDocIDs.current,
       maxLengthDocIDList: maxLengthDocIDList.current,
       returnScreen: 'AttachNewDocs',
       returnRouteKey: route.key,
+      returnSLID: SLID,
     });
   };
 
   const handleSubmit = async () => {
-    const docsForSubmit = [...docs, ...addedDocs].map(item => ({
+    const docsForSubmit = docs.map(item => ({
       SalesLetterID: item.SalesLetterID ?? SLID,
       ProofName: item.ProofName,
       DocSubName: item.DocSubName,
       Document_ID: item.Document_ID ?? '',
-      DocBase64Str:
-        item.DocBase64Str ??
-        (typeof item.DocumentURL === 'string' &&
-        !item.DocumentURL.startsWith(API_IP)
-          ? item.DocumentURL
-          : ''),
+      DocumentURL:
+        item.DocumentURL ??
+        (typeof item.DocBase64Str === 'string' ? item.DocBase64Str : ''),
       Str_ProofName: item.Str_ProofName ?? '',
       Str_SLDoctyp_DocSubName: item.Str_SLDoctyp_DocSubName ?? '',
     }));
@@ -186,14 +201,14 @@ const AttachNewDocsScreen = () => {
         '[AttachNewDocs] Submitting payload:',
         JSON.stringify(payload),
       );
-      // const res = await SaveAdditionalSLDocs(sessionToken, payload);
-      // if (res.IsSuccess) {
-      //   HelperService.showAlert('Success!!!', res.Data ?? res.Msg, () => {
-      //     navigation.navigate('SLCurrentUpdates');
-      //   });
-      // } else {
-      //   HelperService.showAlert('Error occurred', res.Data ?? res.Msg);
-      // }
+      const res = await SaveAdditionalSLDocs(sessionToken, payload);
+      if (res.IsSuccess) {
+        HelperService.showAlert('Success!!!', res.Data ?? res.Msg, () => {
+          navigation.navigate('SLCurrentUpdates');
+        });
+      } else {
+        HelperService.showAlert('Error occurred', res.Data ?? res.Msg);
+      }
     } catch (e: any) {
       const msg =
         e?.message?.includes('Http failure') || e?.message?.includes('fetch')
@@ -205,8 +220,8 @@ const AttachNewDocsScreen = () => {
     }
   };
 
-  const mergedDocs = [...docs, ...addedDocs];
-  const isSubmitDisabled = remark === '' && addedDocs.length === 0;
+  const mergedDocs = docs;
+  const isSubmitDisabled = remark === '' && docs.length <= existingDocsLength;
 
   const renderDoc = ({ item }: { item: any }) => {
     const url: string = item.DocumentURL ?? '';

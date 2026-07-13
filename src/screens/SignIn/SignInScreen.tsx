@@ -25,6 +25,7 @@ import {
   ScrollView,
   Image,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -113,108 +114,121 @@ const SignInScreen = () => {
   };
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.container}
-      keyboardShouldPersistTaps="handled"
+    <KeyboardAvoidingView
+      style={styles.keyboardAvoidingContainer}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 24 : 0}
     >
-      {/* Logo */}
-      <Image
-        source={require('../../assets/imgs/logo.png')}
-        style={styles.logo}
-        resizeMode="contain"
-      />
-
-      {/* Version */}
-      {/* <Text style={styles.versionText}>Version {CURRENT_VERSION}</Text> */}
-
-      {/* Designation Picker — replaces ion-select */}
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Designation</Text>
-        <View style={styles.pickerWrapper}>
-          <Picker
-            selectedValue={designation}
-            onValueChange={val => {
-              console.log('[SignIn] Designation selected:', val);
-              setDesignationLocal(val);
-            }}
-            style={styles.picker}
-          >
-            <Picker.Item label="Select Designation" value="" />
-            <Picker.Item label="RM" value="RM" />
-            <Picker.Item label="ASM" value="ASM" />
-          </Picker>
-        </View>
-      </View>
-
-      {/* Username */}
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>User Name</Text>
-        <TextInput
-          style={styles.input}
-          value={userName}
-          onChangeText={val => {
-            // console.log('[SignIn] Username changed:', val);
-            setUserName(val);
-          }}
-          autoCapitalize="none"
-          autoCorrect={false}
-          placeholder="Enter username"
-          placeholderTextColor="#aaa"
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Logo */}
+        <Image
+          source={require('../../assets/imgs/logo.png')}
+          style={styles.logo}
+          resizeMode="contain"
         />
-      </View>
 
-      {/* Password with show/hide toggle */}
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Password</Text>
-        <View style={styles.passwordRow}>
+        {/* Version */}
+        {/* <Text style={styles.versionText}>Version {CURRENT_VERSION}</Text> */}
+
+        {/* Designation Picker — replaces ion-select */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Designation</Text>
+          <View style={styles.pickerWrapper}>
+            <Picker
+              selectedValue={designation}
+              onValueChange={val => {
+                console.log('[SignIn] Designation selected:', val);
+                setDesignationLocal(val);
+              }}
+              style={styles.picker}
+            >
+              <Picker.Item label="Select Designation" value="" />
+              <Picker.Item label="RM" value="RM" />
+              <Picker.Item label="ASM" value="ASM" />
+            </Picker>
+          </View>
+        </View>
+
+        {/* Username */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>User Name</Text>
           <TextInput
-            style={[styles.input, styles.passwordInput]}
-            value={password}
+            style={styles.input}
+            value={userName}
             onChangeText={val => {
-              // console.log('[SignIn] Password changed (length):', val.length);
-              setPassword(val);
+              // console.log('[SignIn] Username changed:', val);
+              setUserName(val);
             }}
-            secureTextEntry={!passwordVisible}
             autoCapitalize="none"
             autoCorrect={false}
-            placeholder="Enter password"
+            placeholder="Enter username"
             placeholderTextColor="#aaa"
           />
-          <TouchableOpacity
-            style={styles.eyeBtn}
-            onPress={() => setPasswordVisible(!passwordVisible)}
-          >
-            <Ionicons
-              name={passwordVisible ? 'eye-off-outline' : 'eye-outline'}
-              size={20}
-              color="#000"
-            />
-          </TouchableOpacity>
         </View>
-      </View>
 
-      {/* Login Button */}
-      <TouchableOpacity
-        style={[styles.loginBtn, isLoading && styles.loginBtnDisabled]}
-        onPress={handleLogin}
-        disabled={isLoading}
-      >
-        {isLoading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.loginBtnText}>Login</Text>
-        )}
-      </TouchableOpacity>
-    </ScrollView>
+        {/* Password with show/hide toggle */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Password</Text>
+          <View style={styles.passwordRow}>
+            <TextInput
+              style={[styles.input, styles.passwordInput]}
+              value={password}
+              onChangeText={val => {
+                // console.log('[SignIn] Password changed (length):', val.length);
+                setPassword(val);
+              }}
+              secureTextEntry={!passwordVisible}
+              autoCapitalize="none"
+              autoCorrect={false}
+              placeholder="Enter password"
+              placeholderTextColor="#aaa"
+            />
+            <TouchableOpacity
+              style={styles.eyeBtn}
+              onPress={() => setPasswordVisible(!passwordVisible)}
+            >
+              <Ionicons
+                name={passwordVisible ? 'eye-off-outline' : 'eye-outline'}
+                size={20}
+                color="#000"
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Login Button */}
+        <TouchableOpacity
+          style={[styles.loginBtn, isLoading && styles.loginBtnDisabled]}
+          onPress={handleLogin}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.loginBtnText}>Login</Text>
+          )}
+        </TouchableOpacity>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
+  keyboardAvoidingContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
   container: {
     flexGrow: 1,
     padding: 24,
     backgroundColor: '#fff',
     justifyContent: 'center',
+    paddingBottom: 32,
   },
   logo: {
     width: '100%',

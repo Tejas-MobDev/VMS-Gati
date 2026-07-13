@@ -64,10 +64,12 @@ export type SalesLetterStackParamList = {
     SLRecByRM: { param1?: string };
     ServiceBookStatus: { param1?: string };
     HSRPNumberPending: undefined;
-    AttachNewDocs: { SLID: string; newDoc?: any };
+    AttachNewDocs: { SLID?: string; SL_ID?: string; newDoc?: any };
     AddDocumentModal: {
         compulsoryDocIDs: any[];
         maxLengthDocIDList: any[];
         returnScreen: string;
+        returnRouteKey?: string;
+        returnSalesLetterID?: string;
     };
 };

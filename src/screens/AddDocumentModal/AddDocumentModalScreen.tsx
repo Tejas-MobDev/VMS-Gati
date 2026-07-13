@@ -10,13 +10,8 @@
  * On cancel, simply goBack().
  *
  * Capacitor FilePicker (@capawesome/capacitor-file-picker) →
- *   react-native-document-picker (DocumentPicker.pickSingle)
- *   File is read as base64 using react-native-fs or converted from blob.
- *
- * Libraries needed:
- *   - react-native-document-picker (already in package.json)
- *   - react-native-blob-util OR react-native-fs for base64 file reading
- *     (install separately: npm install react-native-blob-util)
+ *   @react-native-documents/picker + react-native-fs.
+ *   We pick only PDF files from device file manager and read them as base64.
  *
  * All validation logic preserved exactly from Angular:
  * - ProofName + DocSubName required
@@ -33,12 +28,17 @@ import {
   ScrollView,
   StyleSheet,
   Image,
-  ActivityIndicator,
   Platform,
-  Alert,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { launchImageLibrary } from 'react-native-image-picker';
+import {
+  errorCodes,
+  isErrorWithCode,
+  keepLocalCopy,
+  pick,
+  types as docTypes,
+} from '@react-native-documents/picker';
+import RNFS from 'react-native-fs';
 import {
   CommonActions,
   useNavigation,
@@ -54,6 +54,7 @@ type AddDocRoute = {
     maxLengthDocIDList: any[];
     returnScreen: string;
     returnRouteKey?: string;
+    returnSLID?: string;
   };
 };
 
@@ -66,12 +67,12 @@ const AddDocumentModalScreen = () => {
     maxLengthDocIDList = [],
     returnScreen = 'AttachNewDocs',
     returnRouteKey,
+    returnSLID,
   } = route.params ?? {};
 
   const [docTypeList, setDocTypeList] = useState<any[]>([]);
   const [allSubDocList, setAllSubDocList] = useState<any[]>([]);
   const [filteredSubDocList, setFilteredSubDocList] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
 
   const [newDocData, setNewDocData] = useState({
     ProofName: 0,
@@ -125,47 +126,74 @@ const AddDocumentModalScreen = () => {
     setField('DocSubNameStr', selected?.Name ?? '');
   };
 
-  const selectPDF = () => {
+  const selectPDF = async () => {
     console.log('[AddDocumentModal] Upload PDF button pressed');
-    launchImageLibrary(
-      {
-        mediaType: 'photo',
-        includeBase64: true,
-        quality: 0.8,
-      },
-      response => {
-        if (response.didCancel) {
-          return;
-        }
-        if (response.errorCode) {
-          HelperService.showAlert(
-            'Error',
-            response.errorMessage ?? 'File picker error.',
-          );
-          return;
-        }
-        const asset = response.assets?.[0];
-        if (!asset) {
+
+    try {
+      const [pickedFile] = await pick({
+        type: [docTypes.pdf],
+        allowMultiSelection: false,
+      });
+
+      if (!pickedFile?.hasRequestedType) {
+        HelperService.showAlert('Error', 'File is not PDF');
+        return;
+      }
+
+      const mimeType = (pickedFile?.type ?? '').toLowerCase();
+      if (mimeType && mimeType !== 'application/pdf') {
+        HelperService.showAlert('Error', 'File is not PDF');
+        return;
+      }
+
+      const fileSize = Number(pickedFile?.size ?? 0);
+      if (fileSize > 200000) {
+        HelperService.showAlert('Error', 'File is more than 200kb');
+        return;
+      }
+
+      let copyUri = pickedFile?.uri;
+      if (Platform.OS === 'android' && copyUri?.startsWith('content://')) {
+        const fileName = pickedFile?.name ?? `doc_${Date.now()}.pdf`;
+        const [copyResult] = await keepLocalCopy({
+          destination: 'cachesDirectory',
+          files: [{ uri: copyUri, fileName }],
+        });
+
+        if (copyResult?.status !== 'success' || !copyResult.localUri) {
+          HelperService.showAlert('Error', 'Unable to read selected file');
           return;
         }
 
-        // Check file size (200KB limit)
-        if (asset.fileSize && asset.fileSize > 200000) {
-          HelperService.showAlert(
-            'File size issue',
-            'Please Select PDF file less than 200KB',
-          );
-          return;
-        }
+        copyUri = copyResult.localUri;
+      }
 
-        if (!asset.base64) {
-          HelperService.showAlert('Error', 'Could not read file.');
-          return;
-        }
+      if (!copyUri) {
+        HelperService.showAlert('Error', 'No file is selected');
+        return;
+      }
 
-        setField('DocBase64Str', asset.base64);
-      },
-    );
+      const localPath = copyUri.startsWith('file://')
+        ? copyUri.replace('file://', '')
+        : copyUri;
+      const base64String = await RNFS.readFile(localPath, 'base64');
+
+      if (!base64String) {
+        HelperService.showAlert('Error', 'No file is selected');
+        return;
+      }
+
+      setField('DocBase64Str', base64String);
+    } catch (error) {
+      const isCancelError =
+        isErrorWithCode(error) &&
+        error.code === errorCodes.OPERATION_CANCELED;
+
+      if (isCancelError) {
+        return;
+      }
+      HelperService.showAlert('Error', 'File picker error.');
+    }
   };
 
   const handleSave = () => {
@@ -201,7 +229,7 @@ const AddDocumentModalScreen = () => {
       return;
     }
 
-    // Pass data back to the exact previous route, then close modal.
+    // Pass data back to AttachNewDocs and close modal.
     console.log(
       '[AddDocumentModal] Data passing to return screen:',
       JSON.stringify(newDocData),
@@ -209,19 +237,17 @@ const AddDocumentModalScreen = () => {
     if (returnRouteKey) {
       navigation.dispatch(
         CommonActions.setParams({
-          params: { newDoc: newDocData },
           source: returnRouteKey,
+          params: { newDoc: newDocData },
         }),
       );
-      navigation.goBack();
-      return;
     }
 
-    navigation.navigate({
-      name: returnScreen,
-      params: { newDoc: newDocData },
-      merge: true,
-    } as never);
+    navigation.navigate(
+      returnScreen,
+      { SLID: returnSLID, newDoc: newDocData },
+      { merge: true },
+    );
   };
 
   const handleCancel = () => {
@@ -307,9 +333,6 @@ const AddDocumentModalScreen = () => {
           <Text style={styles.previewLabel}>File selected ✓</Text>
         </View>
       ) : null}
-
-      {isLoading && <ActivityIndicator style={styles.loader} color="#3880ff" />}
-
       {/* Action buttons */}
       <View style={styles.btnRow}>
         <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel}>
@@ -368,7 +391,6 @@ const styles = StyleSheet.create({
     // backgroundColor: '#eee',
   },
   previewLabel: { color: '#1e7541', fontWeight: '600', marginTop: 6 },
-  loader: { marginVertical: 12 },
   btnRow: { flexDirection: 'row', gap: 12, marginTop: 24, marginBottom: 32 },
   cancelBtn: {
     flex: 1,

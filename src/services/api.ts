@@ -19,7 +19,8 @@ import Config from 'react-native-config';
 
 const BASE_PATH = Config.API_URL;
 // const BASE_PATH = 'http://122.185.131.170:222/api/';
-const CURRENT_VERSION = '1.0.18';
+const CURRENT_VERSION = '1.0.18'; // Test version
+// const CURRENT_VERSION =  '1.0.24'; // live version
 
 export interface ApiResponse {
     IsSuccess: boolean;
