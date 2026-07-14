@@ -27,6 +27,7 @@ import {
   Platform,
   KeyboardAvoidingView,
 } from 'react-native';
+import axios from 'axios';
 import { Picker } from '@react-native-picker/picker';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
@@ -106,8 +107,27 @@ const SignInScreen = () => {
       } else {
         HelperService.showAlert('Error', response.Msg);
       }
-    } catch {
-      HelperService.showAlert('Error', 'Error in web API');
+    } catch (error) {
+      let message = 'Error in web API';
+
+      if (axios.isAxiosError(error)) {
+        message =
+          (error.response?.data as { Msg?: string })?.Msg ||
+          error.message ||
+          message;
+
+        console.log('[SignIn] Login API error:', {
+          url: error.config?.url,
+          method: error.config?.method,
+          status: error.response?.status,
+          data: error.response?.data,
+          message: error.message,
+        });
+      } else {
+        console.log('[SignIn] Login unexpected error:', error);
+      }
+
+      HelperService.showAlert('Error', message);
     } finally {
       setIsLoading(false);
     }

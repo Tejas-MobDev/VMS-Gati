@@ -683,7 +683,7 @@ const styles = StyleSheet.create({
   vendorLabel: {
     padding: 12,
     fontWeight: '700',
-    fontSize: 15,
+    fontSize: 12,
     color: '#333',
     backgroundColor: '#fff',
     borderBottomWidth: 1,
