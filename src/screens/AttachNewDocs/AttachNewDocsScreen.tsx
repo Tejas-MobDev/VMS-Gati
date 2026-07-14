@@ -41,8 +41,9 @@ import {
   SaveAdditionalSLDocs,
 } from '../../services/api';
 import HelperService from '../../utils/helpers';
+import Config from 'react-native-config';
 
-const API_IP = 'http://122.185.131.170:223/';
+const API_IP = Config.API_URL;
 
 type AttachDocsRoute = {
   AttachNewDocs: { SLID: string; newDoc?: any };

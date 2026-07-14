@@ -62,7 +62,11 @@ const PendingSalesLetterScreen = () => {
                     keyExtractor={(_, i) => i.toString()}
                     renderItem={renderItem}
                     ListHeaderComponent={
-                        <Text style={styles.total}>Total: {list.length}</Text>
+                        <View style={styles.countBadge}>
+                            <Text style={styles.totalText}>
+                                Total: {list.length}
+                            </Text>
+                        </View>
                     }
                     ListEmptyComponent={
                         <Text style={styles.emptyText}>No pending SL requests.</Text>
@@ -78,12 +82,17 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f5f5f5' },
     loader: { flex: 1, marginTop: 40 },
     listContent: { padding: 12 },
-    total: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#333',
-        marginBottom: 10,
+    countBadge: {
+        backgroundColor: '#3880ff',
+        alignSelf: 'flex-end',
+        borderRadius: 8,
+        paddingHorizontal: 14,
+        paddingVertical: 5,
+        marginVertical: 10,
+        marginHorizontal: 12,
+        // marginBottom: 10,
     },
+    totalText: { fontWeight: '700', color: '#fff', fontSize: 12 },
     item: {
         backgroundColor: '#fff',
         borderRadius: 8,
