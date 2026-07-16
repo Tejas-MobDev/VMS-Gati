@@ -11,7 +11,7 @@
  * - No amount input per item (blank cheque = no amount)
  * - Simpler form: Mode, Account/Cheque details, Customer name, Direct to Auth
  */
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ import {
   Switch,
   FlatList,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -36,6 +37,13 @@ import {
   GetReceivedPaymentWithoutAmountFromVendor,
   GetBankDetails,
 } from '../../services/api';
+import type {
+  BankAccountDetail,
+  DropdownItem,
+  PaymentCompany,
+  PaymentEpaymentItem,
+  ReceivedPaymentWithoutAmtPayload,
+} from '../../types/api';
 import HelperService from '../../utils/helpers';
 
 const emptyForm = () => ({
@@ -62,12 +70,12 @@ const PaymentRecWithoutAmtScreen = () => {
 
   const [step, setStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [companies, setCompanies] = useState<any[]>([]);
-  const [paymentModeList, setPaymentModeList] = useState<any[]>([]);
-  const [bankNameList, setBankNameList] = useState<any[]>([]);
-  const [bankAccountTypeList, setBankAccountTypeList] = useState<any[]>([]);
-  const [bankDetails, setBankDetails] = useState<any[]>([]);
-  const [epaymentList, setEpaymentList] = useState<any[]>([]);
+  const [companies, setCompanies] = useState<PaymentCompany[]>([]);
+  const [paymentModeList, setPaymentModeList] = useState<DropdownItem[]>([]);
+  const [bankNameList, setBankNameList] = useState<DropdownItem[]>([]);
+  const [bankAccountTypeList, setBankAccountTypeList] = useState<DropdownItem[]>([]);
+  const [bankDetails, setBankDetails] = useState<BankAccountDetail[]>([]);
+  const [epaymentList, setEpaymentList] = useState<PaymentEpaymentItem[]>([]);
   const [form, setForm] = useState(emptyForm());
   const [selectedPaymentModeText, setSelectedPaymentModeText] = useState('');
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
@@ -82,6 +90,7 @@ const PaymentRecWithoutAmtScreen = () => {
     AccHolderName: true,
     CustomerName: true,
   });
+  const formScrollRef = useRef<ScrollView>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -139,19 +148,23 @@ const PaymentRecWithoutAmtScreen = () => {
     }
   };
 
-  const setField = (key: keyof ReturnType<typeof emptyForm>, value: any) =>
-    setForm(prev => ({ ...prev, [key]: value }));
+  const setField = <K extends keyof ReturnType<typeof emptyForm>>(
+    key: K,
+    value: ReturnType<typeof emptyForm>[K],
+  ) => setForm(prev => ({ ...prev, [key]: value }));
 
-  const onCompanySelect = (company: any) => {
+  const onCompanySelect = (company: PaymentCompany) => {
     console.log(
       '[PaymentRecWithoutAmt] Company selected:',
       company.CompanyName,
       '| CompanyID:',
       company.CompanyID,
     );
-    const epayments = JSON.parse(
-      JSON.stringify(company.PaymentPendingListOfEpayment ?? []),
-    ).map((e: any) => ({ ...e, IsChecked: false }));
+    const epayments = (
+      JSON.parse(
+        JSON.stringify(company.PaymentPendingListOfEpayment ?? []),
+      ) as PaymentEpaymentItem[]
+    ).map((e): PaymentEpaymentItem => ({ ...e, IsChecked: false }));
     setEpaymentList(epayments);
     console.log('[PaymentRecWithoutAmt] Epayment list:', epayments);
     setForm({
@@ -177,7 +190,7 @@ const PaymentRecWithoutAmtScreen = () => {
   const onPaymentModeChange = async (modeId: string) => {
     console.log('[PaymentRecWithoutAmt] Payment mode changed:', modeId);
     setField('PaymentMode', modeId);
-    const mode = paymentModeList.find((m: any) => m.ID.toString() === modeId);
+    const mode = paymentModeList.find(m => m.ID.toString() === modeId);
     setSelectedPaymentModeText(mode?.Name ?? '');
     setForm(prev => ({
       ...prev,
@@ -286,11 +299,18 @@ const PaymentRecWithoutAmtScreen = () => {
     setStep(3);
   };
 
+  const handleInputFocus = () => {
+    // Push focused field above keyboard in long forms.
+    setTimeout(() => {
+      formScrollRef.current?.scrollToEnd({ animated: true });
+    }, 120);
+  };
+
   const handleSubmit = async () => {
     setIsLoading(true);
     const f = form;
     const accNo = f.AccountNumberForDD || f.AccountNumberForText;
-    const payload = {
+    const payload: ReceivedPaymentWithoutAmtPayload = {
       VendorAndBankdetails: {
         ...f,
         VendorID: String(f.VendorID || selectedVendorId || ''),
@@ -424,12 +444,18 @@ const PaymentRecWithoutAmtScreen = () => {
 
   if (step === 2) {
     return (
-      <ScrollView
+      <KeyboardAvoidingView
         style={styles.container}
-        contentContainerStyle={styles.formContent}
-        keyboardShouldPersistTaps="handled"
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 24}
       >
-        <Text style={styles.sectionTitle}>Cheque Details</Text>
+        <ScrollView
+          ref={formScrollRef}
+          style={styles.container}
+          contentContainerStyle={styles.formContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.sectionTitle}>Cheque Details</Text>
 
         <Text style={styles.label}>Payment Mode</Text>
         <View style={styles.pickerWrapper}>
@@ -439,7 +465,7 @@ const PaymentRecWithoutAmtScreen = () => {
             style={styles.picker}
           >
             <Picker.Item label="Select Mode" value="" />
-            {paymentModeList.map((m: any) => (
+            {paymentModeList.map(m => (
               <Picker.Item key={m.ID} label={m.Name} value={m.ID.toString()} />
             ))}
           </Picker>
@@ -456,7 +482,7 @@ const PaymentRecWithoutAmtScreen = () => {
                   style={styles.picker}
                 >
                   <Picker.Item label="Select Account" value="" />
-                  {bankDetails.map((b: any, i: number) => (
+                  {bankDetails.map((b, i) => (
                     <Picker.Item
                       key={i}
                       label={b.AccountNumber}
@@ -472,6 +498,7 @@ const PaymentRecWithoutAmtScreen = () => {
                 onChangeText={v => setField('AccountNumberForText', v)}
                 placeholder="Account number"
                 placeholderTextColor="#aaa"
+                onFocus={handleInputFocus}
               />
             )}
           </>
@@ -486,6 +513,7 @@ const PaymentRecWithoutAmtScreen = () => {
               onChangeText={v => setField('ChqNeft_Number', v)}
               placeholder="Cheque/Ref No"
               placeholderTextColor="#aaa"
+              onFocus={handleInputFocus}
             />
           </>
         )}
@@ -540,7 +568,7 @@ const PaymentRecWithoutAmtScreen = () => {
                 mode={Platform.OS === 'android' ? 'dialog' : undefined}
               >
                 <Picker.Item label="Select Bank" value="" />
-                {bankNameList.map((b: any) => (
+                {bankNameList.map(b => (
                   <Picker.Item
                     key={b.ID}
                     label={b.Name}
@@ -561,6 +589,7 @@ const PaymentRecWithoutAmtScreen = () => {
               onChangeText={v => setField('Branch_No', v)}
               placeholder="Branch"
               placeholderTextColor="#aaa"
+              onFocus={handleInputFocus}
             />
           </>
         )}
@@ -575,7 +604,7 @@ const PaymentRecWithoutAmtScreen = () => {
                 style={styles.picker}
               >
                 <Picker.Item label="Select Type" value="" />
-                {bankAccountTypeList.map((a: any) => (
+                {bankAccountTypeList.map(a => (
                   <Picker.Item
                     key={a.ID}
                     label={a.Name}
@@ -598,6 +627,7 @@ const PaymentRecWithoutAmtScreen = () => {
               placeholderTextColor="#aaa"
               maxLength={11}
               autoCapitalize="characters"
+              onFocus={handleInputFocus}
             />
           </>
         )}
@@ -611,6 +641,7 @@ const PaymentRecWithoutAmtScreen = () => {
               onChangeText={v => setField('AccHolderName', v)}
               placeholder="Account Holder Name"
               placeholderTextColor="#aaa"
+              onFocus={handleInputFocus}
             />
           </>
         )}
@@ -624,6 +655,7 @@ const PaymentRecWithoutAmtScreen = () => {
               onChangeText={v => setField('SalesLetter_Customer_Name', v)}
               placeholder="Customer Name"
               placeholderTextColor="#aaa"
+              onFocus={handleInputFocus}
             />
           </>
         )}
@@ -644,7 +676,8 @@ const PaymentRecWithoutAmtScreen = () => {
             <Text style={styles.btnText}>Review</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     );
   }
 
@@ -691,15 +724,21 @@ const styles = StyleSheet.create({
   },
   companyItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     backgroundColor: '#fff',
     borderRadius: 8,
     padding: 14,
     marginBottom: 10,
     elevation: 1,
   },
-  companyName: { fontSize: 15, fontWeight: '600', color: '#222' },
+  companyName: {
+    flex: 1,
+    flexShrink: 1,
+    marginRight: 10,
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#222',
+  },
   sectionTitle: {
     fontSize: 15,
     fontWeight: '700',
@@ -707,6 +746,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   badge: {
+    flexShrink: 0,
     backgroundColor: '#3880ff',
     borderRadius: 12,
     paddingHorizontal: 10,

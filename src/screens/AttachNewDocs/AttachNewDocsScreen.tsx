@@ -16,7 +16,7 @@
  * Ionic ModalController -> React Navigation modal stack screen.
  * Modal returns data via navigation params (useRoute after goBack).
  */
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,8 @@ import {
   StyleSheet,
   ActivityIndicator,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import {
   useFocusEffect,
@@ -34,19 +36,25 @@ import {
   useRoute,
   RouteProp,
 } from '@react-navigation/native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useAppContext } from '../../context/AppContext';
 import {
   GetListOfDocsBySLID,
   GetValidationForDocs,
   SaveAdditionalSLDocs,
 } from '../../services/api';
+import type {
+  DocLengthRule,
+  NewDocumentData,
+  SalesLetterDocument,
+} from '../../types/api';
 import HelperService from '../../utils/helpers';
 import Config from 'react-native-config';
 
 const API_IP = Config.API_URL;
 
 type AttachDocsRoute = {
-  AttachNewDocs: { SLID: string; newDoc?: any };
+  AttachNewDocs: { SLID: string; newDoc?: NewDocumentData };
 };
 
 const AttachNewDocsScreen = () => {
@@ -54,15 +62,38 @@ const AttachNewDocsScreen = () => {
   const route = useRoute<RouteProp<AttachDocsRoute, 'AttachNewDocs'>>();
   const { sessionToken } = useAppContext();
 
-  const [docs, setDocs] = useState<any[]>([]);
+  const [docs, setDocs] = useState<SalesLetterDocument[]>([]);
   const [remark, setRemark] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [existingDocsLength, setExistingDocsLength] = useState(0);
-  const compulsoryDocIDs = useRef<any[]>([]);
-  const maxLengthDocIDList = useRef<any[]>([]);
+  const compulsoryDocIDs = useRef<number[]>([]);
+  const maxLengthDocIDList = useRef<DocLengthRule[]>([]);
   const lastHandledDocKey = useRef('');
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const SLID = route.params?.SLID ?? '0';
+
+  const handleBack = useCallback(() => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    navigation.navigate('SLCurrentUpdates');
+  }, [navigation]);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerLeft: () => (
+        <TouchableOpacity
+          onPress={handleBack}
+          style={styles.backButton}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="arrow-back" size={24} color="#000" />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, handleBack]);
 
   const loadData = useCallback(async () => {
     console.log('[AttachNewDocs] Loading data...');
@@ -77,13 +108,14 @@ const AttachNewDocsScreen = () => {
         GetValidationForDocs(),
       ]);
       if (docsRes.IsSuccess) {
-        const prefixed = (docsRes.Data ?? []).map((d: any) => ({
+        const prefixed = (docsRes.Data ?? []).map((d): SalesLetterDocument => ({
           ...d,
-          DocumentURL: API_IP + d.DocumentURL,
+          DocumentURL: (API_IP ?? '') + (d.DocumentURL ?? ''),
         }));
         setDocs(prev => {
+          const apiBase = API_IP ?? '';
           const localAddedDocs = prev.filter(
-            (doc: any) => !(doc?.DocumentURL ?? '').startsWith(API_IP),
+            doc => !(doc?.DocumentURL ?? '').startsWith(apiBase),
           );
           return [...prefixed, ...localAddedDocs];
         });
@@ -105,7 +137,7 @@ const AttachNewDocsScreen = () => {
   }, [SLID, sessionToken]);
 
   const appendReturnedDoc = useCallback(
-    (newDoc: any) => {
+    (newDoc: NewDocumentData | undefined) => {
       if (!newDoc) {
         return;
       }
@@ -136,7 +168,7 @@ const AttachNewDocsScreen = () => {
 
   useFocusEffect(
     useCallback(() => {
-      const incomingDoc = (route.params as any)?.newDoc;
+      const incomingDoc = route.params?.newDoc;
       if (incomingDoc) {
         appendReturnedDoc(incomingDoc);
       }
@@ -224,7 +256,7 @@ const AttachNewDocsScreen = () => {
   const mergedDocs = docs;
   const isSubmitDisabled = remark === '' && docs.length <= existingDocsLength;
 
-  const renderDoc = ({ item }: { item: any }) => {
+  const renderDoc = ({ item }: { item: SalesLetterDocument }) => {
     const url: string = item.DocumentURL ?? '';
     const isPDF =
       url.endsWith('pdf') ||
@@ -251,62 +283,86 @@ const AttachNewDocsScreen = () => {
     );
   };
 
+  const handleRemarkFocus = () => {
+    // Ensure remark input is visible when keyboard opens.
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, 120);
+  };
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Add Document button */}
-      <TouchableOpacity style={styles.addBtn} onPress={openModal}>
-        <Text style={styles.addBtnText}>+ Add Document</Text>
-      </TouchableOpacity>
-
-      {/* Document grid */}
-
-      {isLoading ? (
-        <ActivityIndicator style={styles.loader} size="large" color="#3880ff" />
-      ) : (
-        <FlatList
-          data={mergedDocs}
-          keyExtractor={(_, i) => i.toString()}
-          renderItem={renderDoc}
-          numColumns={2}
-          scrollEnabled={false}
-          contentContainerStyle={styles.docGrid}
-          columnWrapperStyle={styles.columnWrapper}
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>No documents yet.</Text>
-          }
-        />
-      )}
-      {/* Remark */}
-      <Text style={styles.label}>Remark</Text>
-      <TextInput
-        style={styles.remarkInput}
-        value={remark}
-        onChangeText={setRemark}
-        placeholder="Enter remarks..."
-        placeholderTextColor="#aaa"
-        multiline
-        numberOfLines={4}
-      />
-
-      {/* Submit */}
-      <TouchableOpacity
-        style={[styles.submitBtn, isSubmitDisabled && styles.submitBtnDisabled]}
-        onPress={handleSubmit}
-        disabled={isSubmitDisabled || isLoading}
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 24}
+    >
+      <ScrollView
+        ref={scrollViewRef}
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
       >
+        {/* Add Document button */}
+        <TouchableOpacity style={styles.addBtn} onPress={openModal}>
+          <Text style={styles.addBtnText}>+ Add Document</Text>
+        </TouchableOpacity>
+
+        {/* Document grid */}
+
         {isLoading ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator
+            style={styles.loader}
+            size="large"
+            color="#3880ff"
+          />
         ) : (
-          <Text style={styles.submitBtnText}>Submit</Text>
+          <FlatList
+            data={mergedDocs}
+            keyExtractor={(_, i) => i.toString()}
+            renderItem={renderDoc}
+            numColumns={2}
+            scrollEnabled={false}
+            contentContainerStyle={styles.docGrid}
+            columnWrapperStyle={styles.columnWrapper}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>No documents yet.</Text>
+            }
+          />
         )}
-      </TouchableOpacity>
-    </ScrollView>
+        {/* Remark */}
+        <Text style={styles.label}>Remark</Text>
+        <TextInput
+          style={styles.remarkInput}
+          value={remark}
+          onChangeText={setRemark}
+          placeholder="Enter remarks..."
+          placeholderTextColor="#aaa"
+          multiline
+          numberOfLines={4}
+          onFocus={handleRemarkFocus}
+        />
+
+        {/* Submit */}
+        <TouchableOpacity
+          style={[styles.submitBtn, isSubmitDisabled && styles.submitBtnDisabled]}
+          onPress={handleSubmit}
+          disabled={isSubmitDisabled || isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.submitBtnText}>Submit</Text>
+          )}
+        </TouchableOpacity>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   content: { padding: 16 },
+  backButton: { padding: 4 },
   addBtn: {
     backgroundColor: '#3880ff',
     borderRadius: 8,

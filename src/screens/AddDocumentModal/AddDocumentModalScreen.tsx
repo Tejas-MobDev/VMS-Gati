@@ -46,12 +46,17 @@ import {
   RouteProp,
 } from '@react-navigation/native';
 import { GetMobileDropDownList } from '../../services/api';
+import type {
+  DocLengthRule,
+  MobileDropdownItem,
+  NewDocumentData,
+} from '../../types/api';
 import HelperService from '../../utils/helpers';
 
 type AddDocRoute = {
   AddDocumentModal: {
-    compulsoryDocIDs: any[];
-    maxLengthDocIDList: any[];
+    compulsoryDocIDs: number[];
+    maxLengthDocIDList: DocLengthRule[];
     returnScreen: string;
     returnRouteKey?: string;
     returnSLID?: string;
@@ -70,11 +75,11 @@ const AddDocumentModalScreen = () => {
     returnSLID,
   } = route.params ?? {};
 
-  const [docTypeList, setDocTypeList] = useState<any[]>([]);
-  const [allSubDocList, setAllSubDocList] = useState<any[]>([]);
-  const [filteredSubDocList, setFilteredSubDocList] = useState<any[]>([]);
+  const [docTypeList, setDocTypeList] = useState<MobileDropdownItem[]>([]);
+  const [allSubDocList, setAllSubDocList] = useState<MobileDropdownItem[]>([]);
+  const [filteredSubDocList, setFilteredSubDocList] = useState<MobileDropdownItem[]>([]);
 
-  const [newDocData, setNewDocData] = useState({
+  const [newDocData, setNewDocData] = useState<NewDocumentData>({
     ProofName: 0,
     DocSubName: 0,
     DocBase64Str: '',
@@ -98,8 +103,10 @@ const AddDocumentModalScreen = () => {
     });
   }, []);
 
-  const setField = (key: keyof typeof newDocData, value: any) =>
-    setNewDocData(prev => ({ ...prev, [key]: value }));
+  const setField = <K extends keyof NewDocumentData>(
+    key: K,
+    value: NewDocumentData[K],
+  ) => setNewDocData(prev => ({ ...prev, [key]: value }));
 
   const onDocTypeChange = (value: string) => {
     console.log('[AddDocumentModal] Doc type changed:', value);

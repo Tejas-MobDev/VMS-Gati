@@ -29,6 +29,10 @@ import {
   PaymenofVendorForRM,
   SavePaymentRemarkInSalesOrderDet,
 } from '../../services/api';
+import type {
+  PendingPaymentEpaymentItem,
+  PendingPaymentVehicleItem,
+} from '../../types/api';
 import { dateTimeSplit } from '../../utils/formatters';
 import HelperService from '../../utils/helpers';
 
@@ -41,9 +45,9 @@ const PendingPaymentScreen = () => {
   const [searchText, setSearchText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const [vehicleList, setVehicleList] = useState<any[]>([]);
-  const [filteredVehicleList, setFilteredVehicleList] = useState<any[]>([]);
-  const [epaymentList, setEpaymentList] = useState<any[]>([]);
+  const [vehicleList, setVehicleList] = useState<PendingPaymentVehicleItem[]>([]);
+  const [filteredVehicleList, setFilteredVehicleList] = useState<PendingPaymentVehicleItem[]>([]);
+  const [epaymentList, setEpaymentList] = useState<PendingPaymentEpaymentItem[]>([]);
   const [totalVehicleBalance, setTotalVehicleBalance] = useState(0);
   const [totalEpaymentBalance, setTotalEpaymentBalance] = useState(0);
   const [remarks, setRemarks] = useState<Record<string, string>>({});
@@ -64,10 +68,10 @@ const PendingPaymentScreen = () => {
             setFilteredVehicleList(vehicles);
             setEpaymentList(epayments);
             setTotalVehicleBalance(
-              vehicles.reduce((s: number, c: any) => s + (c.Balance ?? 0), 0),
+              vehicles.reduce((s, c) => s + (c.Balance ?? 0), 0),
             );
             setTotalEpaymentBalance(
-              epayments.reduce((s: number, c: any) => {
+              epayments.reduce((s, c) => {
                 return c.Balance > 0 ? s + c.Balance : s;
               }, 0),
             );
@@ -101,8 +105,14 @@ const PendingPaymentScreen = () => {
     }
   };
 
-  const saveRemark = async (item: any, type: 'Vehicle' | 'Epayment') => {
-    const key = `${type}_${item.ID ?? item.SalesOrderDetID}`;
+  const saveRemark = async (
+    item: PendingPaymentVehicleItem | PendingPaymentEpaymentItem,
+    type: 'Vehicle' | 'Epayment',
+  ) => {
+    const key =
+      type === 'Vehicle'
+        ? `Vehicle_${(item as PendingPaymentVehicleItem).ID}`
+        : `Epayment_${(item as PendingPaymentEpaymentItem).SalesOrderDetID}`;
     console.log(
       '[PendingPayment] Save Remark pressed | type:',
       type,
@@ -111,7 +121,10 @@ const PendingPaymentScreen = () => {
     );
     const remark = remarks[key] ?? item.PaymentRemark ?? '';
     const paymentData = {
-      SalesOrderdetID: type === 'Epayment' ? item.SalesOrderDetID : item.ID,
+      SalesOrderdetID:
+        type === 'Epayment'
+          ? (item as PendingPaymentEpaymentItem).SalesOrderDetID
+          : (item as PendingPaymentVehicleItem).ID,
       RemarkPayment: remark,
       RemarkType: type,
     };
@@ -132,7 +145,7 @@ const PendingPaymentScreen = () => {
   const setRemark = (key: string, value: string) =>
     setRemarks(prev => ({ ...prev, [key]: value }));
 
-  const renderVehicleItem = ({ item, index }: { item: any; index: number }) => {
+  const renderVehicleItem = ({ item }: { item: PendingPaymentVehicleItem }) => {
     const key = `Vehicle_${item.ID}`;
     const isOld = (item.Aging ?? 0) > 5;
     return (
@@ -176,7 +189,7 @@ const PendingPaymentScreen = () => {
     );
   };
 
-  const renderEpaymentItem = ({ item }: { item: any }) => {
+  const renderEpaymentItem = ({ item }: { item: PendingPaymentEpaymentItem }) => {
     const key = `Epayment_${item.SalesOrderDetID}`;
     const isOld = (item.Aging ?? 0) > 5;
     return (
@@ -361,7 +374,7 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 12,
     elevation: 1,
-    borderLeftWidth: 4,
+    borderLeftWidth: 1,
     borderLeftColor: 'transparent',
   },
   cardOld: { borderLeftColor: '#eb445a' },

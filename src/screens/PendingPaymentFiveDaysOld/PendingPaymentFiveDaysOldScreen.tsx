@@ -13,11 +13,12 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { useAppContext } from '../../context/AppContext';
 import { getPaymentPendingMorethan5daysofVendorForRM } from '../../services/api';
+import type { PendingPaymentFiveDaysItem } from '../../types/api';
 import HelperService from '../../utils/helpers';
 
 const PendingPaymentFiveDaysOldScreen = () => {
   const { sessionToken, selectedRMId, designation } = useAppContext();
-  const [list, setList] = useState<any[]>([]);
+  const [list, setList] = useState<PendingPaymentFiveDaysItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useFocusEffect(

@@ -25,6 +25,7 @@ import {
   HSRPNumberHoldByDolphinOrAuthForRM_ASM_App,
   HSRPNumberReceivedByRM_ASM,
 } from '../../services/api';
+import type { HSRPItem } from '../../types/api';
 import HelperService from '../../utils/helpers';
 
 type TabType = 'NumberReceive' | 'Hold';
@@ -36,8 +37,8 @@ const HSRPNumberPendingScreen = () => {
   const [searchText, setSearchText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const [pendingList, setPendingList] = useState<any[]>([]);
-  const [holdList, setHoldList] = useState<any[]>([]);
+  const [pendingList, setPendingList] = useState<HSRPItem[]>([]);
+  const [holdList, setHoldList] = useState<HSRPItem[]>([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -69,7 +70,7 @@ const HSRPNumberPendingScreen = () => {
     }, [sessionToken, designation]),
   );
 
-  const handleMarkReceived = async (item: any) => {
+  const handleMarkReceived = async (item: HSRPItem) => {
     console.log(
       '[HSRPNumberPending] Mark Received pressed | ID:',
       item.HSRPDetail_ID,
@@ -97,7 +98,7 @@ const HSRPNumberPendingScreen = () => {
     }
   };
 
-  const getFilteredList = (): any[] => {
+  const getFilteredList = (): HSRPItem[] => {
     const base = activeTab === 'NumberReceive' ? pendingList : holdList;
     if (!searchText) {
       return base;
@@ -110,7 +111,7 @@ const HSRPNumberPendingScreen = () => {
     );
   };
 
-  const renderItem = ({ item }: { item: any }) => (
+  const renderItem = ({ item }: { item: HSRPItem }) => (
     <View style={styles.card}>
       <Text style={styles.numberPlate}>{item.NumberPlate}</Text>
       <Text style={styles.detail}>Chassis: {item.ChassisNumber}</Text>

@@ -29,6 +29,7 @@ import {
   GetSLRecByRM_SalesLetterForRM,
   SLRecievedByRMForRM,
 } from '../../services/api';
+import type { SLRecByRMItem } from '../../types/api';
 import HelperService from '../../utils/helpers';
 
 type SLRecRouteParams = { SLRecByRM: { param1?: string } };
@@ -40,8 +41,8 @@ const SLRecByRMScreen = () => {
   const { sessionToken, designation, selectedVendorId, selectedRMId } =
     useAppContext();
 
-  const [list, setList] = useState<any[]>([]);
-  const [filteredList, setFilteredList] = useState<any[]>([]);
+  const [list, setList] = useState<SLRecByRMItem[]>([]);
+  const [filteredList, setFilteredList] = useState<SLRecByRMItem[]>([]);
   const [searchText, setSearchText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -60,7 +61,7 @@ const SLRecByRMScreen = () => {
       GetSLRecByRM_SalesLetterForRM(sessionToken, vendorID, rmID ?? '0')
         .then(res => {
           if (res.IsSuccess) {
-            const data = res.Data.map((d: any) => ({ ...d, IsChecked: false }));
+            const data = res.Data.map((d): SLRecByRMItem => ({ ...d, IsChecked: false }));
             setList(data);
             setFilteredList(data);
           } else {
@@ -87,7 +88,7 @@ const SLRecByRMScreen = () => {
     }
   };
 
-  const handleToggle = (item: any) => {
+  const handleToggle = (item: SLRecByRMItem) => {
     console.log(
       '[SLRecByRM] Toggle pressed for item ID:',
       item.Id,
@@ -129,7 +130,7 @@ const SLRecByRMScreen = () => {
     );
   };
 
-  const renderItem = ({ item }: { item: any }) => (
+  const renderItem = ({ item }: { item: SLRecByRMItem }) => (
     <View style={styles.item}>
       <View style={styles.itemContent}>
         <Text style={styles.soldTo}>{item.SoldTo_N}</Text>

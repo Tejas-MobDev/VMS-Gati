@@ -21,7 +21,7 @@
  * ReactiveForm (Angular) → useState object (React Native).
  * FormBuilder → plain state object with field names matching original form.
  */
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -33,6 +33,8 @@ import {
   Switch,
   FlatList,
   Platform,
+  KeyboardAvoidingView,
+  Keyboard,
 } from 'react-native';
 import DateTimePicker, {
   DateTimePickerEvent,
@@ -47,6 +49,13 @@ import {
   IsChequOrPaymentNumberAvail,
   CheckPurchaseVendorFromSalesOrderDetID,
 } from '../../services/api';
+import type {
+  BankAccountDetail,
+  DropdownItem,
+  PaymentCompany,
+  PaymentEpaymentItem,
+  PaymentVehicleItem,
+} from '../../types/api';
 import HelperService from '../../utils/helpers';
 
 const emptyForm = () => ({
@@ -73,6 +82,7 @@ const emptyForm = () => ({
 });
 
 type FormData = ReturnType<typeof emptyForm>;
+type Step1TabType = 'Vehicle' | 'Epayment';
 
 const parseDateFromYmd = (value: string) => {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value || '');
@@ -93,7 +103,7 @@ const formatDateToYmd = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
-const toNumberOrZero = (value: any) => {
+const toNumberOrZero = (value: unknown) => {
   const num = Number(value);
   return Number.isFinite(num) ? num : 0;
 };
@@ -104,20 +114,21 @@ const PaymentRecFromVendorScreen = () => {
     useAppContext();
 
   const [step, setStep] = useState(0);
+  const [step1ActiveTab, setStep1ActiveTab] = useState<Step1TabType>('Vehicle');
   const [isLoading, setIsLoading] = useState(false);
 
   // Master data
-  const [companies, setCompanies] = useState<any[]>([]);
-  const [paymentModeList, setPaymentModeList] = useState<any[]>([]);
-  const [hypothicationList, setHypothicationList] = useState<any[]>([]);
-  const [dsaList, setDsaList] = useState<any[]>([]);
-  const [bankNameList, setBankNameList] = useState<any[]>([]);
-  const [bankAccountTypeList, setBankAccountTypeList] = useState<any[]>([]);
-  const [bankDetails, setBankDetails] = useState<any[]>([]);
+  const [companies, setCompanies] = useState<PaymentCompany[]>([]);
+  const [paymentModeList, setPaymentModeList] = useState<DropdownItem[]>([]);
+  const [hypothicationList, setHypothicationList] = useState<DropdownItem[]>([]);
+  const [dsaList, setDsaList] = useState<DropdownItem[]>([]);
+  const [bankNameList, setBankNameList] = useState<DropdownItem[]>([]);
+  const [bankAccountTypeList, setBankAccountTypeList] = useState<DropdownItem[]>([]);
+  const [bankDetails, setBankDetails] = useState<BankAccountDetail[]>([]);
 
   // Selected company data
-  const [vehicleList, setVehicleList] = useState<any[]>([]);
-  const [epaymentList, setEpaymentList] = useState<any[]>([]);
+  const [vehicleList, setVehicleList] = useState<PaymentVehicleItem[]>([]);
+  const [epaymentList, setEpaymentList] = useState<PaymentEpaymentItem[]>([]);
 
   // Form
   const [form, setForm] = useState<FormData>(emptyForm());
@@ -125,6 +136,31 @@ const PaymentRecFromVendorScreen = () => {
   const [adjustedAmount, setAdjustedAmount] = useState(0);
   const [autoCalcTotal, setAutoCalcTotal] = useState(0);
   const [showChequeDatePicker, setShowChequeDatePicker] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent =
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, e => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  const scrollContentStyle = (baseStyle: object) => [
+    baseStyle,
+    { paddingBottom: 24 + keyboardHeight },
+  ];
 
   // Field visibility (mirrors ShowXxx booleans)
   const [show, setShow] = useState({
@@ -205,7 +241,7 @@ const PaymentRecFromVendorScreen = () => {
     }, [sessionToken, selectedVendorId, designation]),
   );
 
-  const setField = (key: keyof FormData, value: any) =>
+  const setField = <K extends keyof FormData>(key: K, value: FormData[K]) =>
     setForm(prev => ({ ...prev, [key]: value }));
 
   const onChequeDateChange = (
@@ -219,7 +255,7 @@ const PaymentRecFromVendorScreen = () => {
     setField('ChequeDate', formatDateToYmd(selectedDate));
   };
 
-  const onCompanySelect = (company: any) => {
+  const onCompanySelect = (company: PaymentCompany) => {
     console.log(
       '[PaymentRecFromVendor] Company selected:',
       company.CompanyName,
@@ -229,13 +265,13 @@ const PaymentRecFromVendorScreen = () => {
     // Deep copy to avoid mutating master data
     const vehicles = JSON.parse(
       JSON.stringify(company.PaymentPendingList ?? []),
-    );
+    ) as PaymentVehicleItem[];
     const rawEpayments = JSON.parse(
       JSON.stringify(company.PaymentPendingListOfEpayment ?? []),
-    );
+    ) as PaymentEpaymentItem[];
 
     // Epayment balance calculation (mirrors Angular logic)
-    const epayments = rawEpayments.map((ep: any) => {
+    const epayments = rawEpayments.map((ep): PaymentEpaymentItem => {
       if (ep.TotalEpaymentRecAmt == null) {
         if (
           ['19', '20', '21'].includes(ep.SalesType) &&
@@ -249,7 +285,7 @@ const PaymentRecFromVendorScreen = () => {
             ep.PaidTillNow = 0;
           }
           ep.Balance =
-            parseInt(ep.TotalEpaymentRecAmt) - parseInt(ep.PaidTillNow);
+            Number(ep.TotalEpaymentRecAmt) - Number(ep.PaidTillNow);
         } else {
           ep.TotalEpaymentRecAmt = '';
           ep.Balance = '';
@@ -259,7 +295,7 @@ const PaymentRecFromVendorScreen = () => {
     });
 
     setVehicleList(
-      vehicles.map((v: any) => ({
+      vehicles.map((v): PaymentVehicleItem => ({
         ...v,
         IsChecked: false,
         PaymentRec_AfterPostBack: null,
@@ -269,10 +305,15 @@ const PaymentRecFromVendorScreen = () => {
     resetAll();
     setField('VendorID', selectedVendorId);
     setField('PaymentRecInCompany', company.CompanyID.toString());
+    setStep1ActiveTab('Vehicle');
     setStep(1);
   };
 
-  const recalcTotal = (vehicles: any[], epayments: any[], advance: number) => {
+  const recalcTotal = (
+    vehicles: PaymentVehicleItem[],
+    epayments: PaymentEpaymentItem[],
+    advance: number,
+  ) => {
     const vTotal = vehicles
       .filter(v => v.IsChecked)
       .reduce((s, c) => s + (c.PaymentRec_AfterPostBack ?? 0), 0);
@@ -345,7 +386,7 @@ const PaymentRecFromVendorScreen = () => {
     const hasLimit =
       updated[idx].TotalEpaymentRecAmt !== '' &&
       updated[idx].TotalEpaymentRecAmt != null;
-    if (hasLimit && num > updated[idx].Balance) {
+    if (hasLimit && num > Number(updated[idx].Balance)) {
       HelperService.showAlert(
         'Error',
         `Balance amount is Rs.${updated[idx].Balance}`,
@@ -470,6 +511,25 @@ const PaymentRecFromVendorScreen = () => {
         DSAName: false,
       });
     }
+  };
+
+  const validateStep1AndNext = () => {
+    const missingVehicleAmount = vehicleList.some(
+      v => v.IsChecked && v.PaymentRec_AfterPostBack == null,
+    );
+    const missingEpaymentAmount = epaymentList.some(
+      e => e.IsChecked && e.PaymentRec_AfterPostBack == null,
+    );
+
+    if (missingVehicleAmount || missingEpaymentAmount) {
+      HelperService.showAlert(
+        'Error',
+        'Please enter received amount for selected item(s).',
+      );
+      return;
+    }
+
+    setStep(2);
   };
 
   const validateAndNext = async () => {
@@ -622,7 +682,7 @@ const PaymentRecFromVendorScreen = () => {
           setIsLoading(false);
           return;
         }
-      } catch {}
+      } catch { }
     }
 
     // Check direct payment to auth
@@ -641,7 +701,7 @@ const PaymentRecFromVendorScreen = () => {
           setIsLoading(false);
           return;
         }
-      } catch {}
+      } catch { }
     }
 
     setIsLoading(false);
@@ -720,7 +780,7 @@ const PaymentRecFromVendorScreen = () => {
         <Text style={styles.vendorLabel}>Vendor: {selectedVendorName}</Text>
         <FlatList
           data={companies}
-          keyExtractor={(_, i) => i.toString()} 
+          keyExtractor={(_, i) => i.toString()}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.companyItem}
@@ -744,442 +804,521 @@ const PaymentRecFromVendorScreen = () => {
   // ── Step 1: Vehicle + Epayment selection ─────────────────────────────────
   if (step === 1) {
     return (
-      <ScrollView
+      <KeyboardAvoidingView
         style={styles.container}
-        contentContainerStyle={{ padding: 12 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
       >
-        <Text style={styles.sectionTitle}>Vehicle Payments</Text>
-        {vehicleList.map((item, idx) => (
-          <View key={idx} style={styles.selectionCard}>
-            <View style={styles.selectionRow}>
-              <Switch
-                value={item.IsChecked}
-                onValueChange={v => toggleVehicle(idx, v)}
-                trackColor={{ true: '#3880ff' }}
-              />
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.cardTitle}>{item.InternalVendorName}</Text>
-                <Text style={styles.detail}>Chassis: {item.ChessisNo}</Text>
-                <Text style={styles.detail}>Balance: {item.Balance}</Text>
-              </View>
-            </View>
-            {item.IsChecked && (
-              <TextInput
-                style={styles.amtInput}
-                placeholder="Enter amount"
-                placeholderTextColor="#aaa"
-                keyboardType="numeric"
-                value={item.PaymentRec_AfterPostBack?.toString() ?? ''}
-                onChangeText={v => setVehicleAmount(idx, v)}
-              />
-            )}
-          </View>
-        ))}
-
-        <Text style={[styles.sectionTitle, { marginTop: 16 }]}>
-          Epayment Payments
-        </Text>
-        {epaymentList.map((item, idx) => (
-          <View key={idx} style={styles.selectionCard}>
-            <View style={styles.selectionRow}>
-              <Switch
-                value={item.IsChecked}
-                onValueChange={v => toggleEpayment(idx, v)}
-                trackColor={{ true: '#3880ff' }}
-              />
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.cardTitle}>{item.InternalVendorName}</Text>
-                <Text style={styles.detail}>Chassis: {item.ChessisNo}</Text>
-                <Text style={styles.detail}>Balance: {item.Balance}</Text>
-              </View>
-            </View>
-            {item.IsChecked && (
-              <TextInput
-                style={styles.amtInput}
-                placeholder="Enter amount"
-                placeholderTextColor="#aaa"
-                keyboardType="numeric"
-                value={item.PaymentRec_AfterPostBack?.toString() ?? ''}
-                onChangeText={v => setEpaymentAmount(idx, v)}
-              />
-            )}
-          </View>
-        ))}
-
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryText}>
-            Adjusted Amount: {adjustedAmount}
-          </Text>
+        <View style={styles.tabRow}>
+          {(['Vehicle', 'Epayment'] as Step1TabType[]).map(tab => (
+            <TouchableOpacity
+              key={tab}
+              style={[
+                styles.tabBtn,
+                step1ActiveTab === tab && styles.tabBtnActive,
+              ]}
+              onPress={() => setStep1ActiveTab(tab)}
+            >
+              <Text
+                style={[
+                  styles.tabBtnText,
+                  step1ActiveTab === tab && styles.tabBtnTextActive,
+                ]}
+              >
+                {tab}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
-        <View style={styles.navButtons}>
-          <TouchableOpacity style={styles.prevBtn} onPress={() => setStep(0)}>
-            <Text style={styles.btnText}>Previous</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.nextBtn} onPress={() => setStep(2)}>
-            <Text style={styles.btnText}>Next</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={scrollContentStyle({ padding: 12 })}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
+          {step1ActiveTab === 'Vehicle' &&
+            vehicleList.map((item, idx) => (
+              <View key={idx} style={styles.selectionCard}>
+                <View style={styles.selectionRow}>
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <Text style={styles.cardTitle}>{item.InternalVendorName}</Text>
+                    <Text style={styles.detail}>Allot on : {item.AllotmentDateOn}</Text>
+                    <Text style={styles.detail}>Dispatched on : {item.VehicleDispatchedOn}</Text>
+                    <Text style={styles.detail}>Aging : {item.Aging}</Text>
+                    <Text style={styles.detail}>Insurance Request Date : {item.InsuranceReqDate}</Text>
+                    <Text style={styles.detail}>Chassis No. : {item.ChessisNo}</Text>
+                    <Text style={styles.detail}>Engine No. : {item.EngineNo}</Text>
+                    <Text style={styles.detail}>{item.ProductName}, {item.ColorName}, {item.StrSalesType}</Text>
+                    <Text style={styles.detail}>Total Price. : {item.TotalAmt}</Text>
+                    <Text style={styles.detail}>Paid Till Now. : {item.PaidTillNow}</Text>
+                    <Text style={styles.detail}>Pending: {item.Balance}</Text>
+                    <Text style={styles.detail}>Payment Remark: {item.PaymentRemark}</Text>
+                  </View>
+                  <Switch
+                    value={item.IsChecked}
+                    onValueChange={v => toggleVehicle(idx, v)}
+                    trackColor={{ true: '#3880ff' }}
+                  />
+                </View>
+                {item.IsChecked && (
+                  <TextInput
+                    style={styles.amtInput}
+                    placeholder="Enter amount"
+                    placeholderTextColor="#aaa"
+                    keyboardType="numeric"
+                    value={item.PaymentRec_AfterPostBack?.toString() ?? ''}
+                    onChangeText={v => setVehicleAmount(idx, v)}
+                  />
+                )}
+              </View>
+            ))}
+
+          {step1ActiveTab === 'Epayment' &&
+            epaymentList.map((item, idx) => (
+              <View key={idx} style={styles.selectionCard}>
+                <View style={styles.selectionRow}>
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <Text style={styles.cardTitle}>{item.InternalVendorName}</Text>
+                    <Text style={styles.detail}>Allot on : {item.VehicleAllotDt}</Text>
+                    <Text style={styles.detail}>Dispatched on : {item.VehicleDispatchedDt}</Text>
+                    <Text style={styles.detail}>Aging : {item.Aging}</Text>
+                    <Text style={styles.detail}>Chassis: {item.ChessisNo}</Text>
+                    <Text style={styles.detail}>Engine No. : {item.EngineNo}</Text>
+                    <Text style={styles.detail}>{item.ProductName}, {item.ColorName}, {item.StrSalesType}</Text>
+                    <Text style={styles.detail}>Approx Epayment : {item.TotalEpaymentRecAmt}</Text>
+                    <Text style={styles.detail}>Paid Till Now. : {item.PaidTillNow}</Text>
+                    <Text style={styles.detail}>Pending: {item.Balance}</Text>
+                  </View>
+                  <Switch
+                    value={item.IsChecked}
+                    onValueChange={v => toggleEpayment(idx, v)}
+                    trackColor={{ true: '#3880ff' }}
+                  />
+                </View>
+                {item.IsChecked && (
+                  <TextInput
+                    style={styles.amtInput}
+                    placeholder="Enter amount"
+                    placeholderTextColor="#aaa"
+                    keyboardType="numeric"
+                    value={item.PaymentRec_AfterPostBack?.toString() ?? ''}
+                    onChangeText={v => setEpaymentAmount(idx, v)}
+                  />
+                )}
+              </View>
+            ))}
+
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryText}>
+              Adjusted Amount: {adjustedAmount}
+            </Text>
+          </View>
+          <View style={styles.navButtons}>
+            <TouchableOpacity style={styles.prevBtn} onPress={() => setStep(0)}>
+              <Text style={styles.btnText}>Previous</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.nextBtn} onPress={validateStep1AndNext}>
+              <Text style={styles.btnText}>Next</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     );
   }
 
   // ── Step 2: Payment form ─────────────────────────────────────────────────
   if (step === 2) {
     return (
-      <ScrollView
+      <KeyboardAvoidingView
         style={styles.container}
-        contentContainerStyle={styles.formContent}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
       >
-        <Text style={styles.sectionTitle}>Payment Details</Text>
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={scrollContentStyle(styles.formContent)}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
+          <Text style={styles.sectionTitle}>Payment Details</Text>
 
-        {/* Payment Mode */}
-        <Text style={styles.label}>Payment Mode</Text>
-        <View style={styles.pickerWrapper}>
-          <Picker
-            selectedValue={form.PaymentMode}
-            onValueChange={v => onPaymentModeChange(v)}
-            style={styles.picker}
-          >
-            <Picker.Item label="Select Mode" value="" />
-            {paymentModeList.map((m: any) => (
-              <Picker.Item key={m.ID} label={m.Name} value={m.ID.toString()} />
-            ))}
-          </Picker>
-        </View>
+          {/* Amounts */}
+          <Text style={styles.label}>Advance Received</Text>
+          <TextInput
+            style={styles.input}
+            value={form.AdvanceRecieved}
+            onChangeText={v => {
+              setField('AdvanceRecieved', v);
+              setAutoCalcTotal(adjustedAmount + (parseFloat(v) || 0));
+            }}
+            placeholder="0"
+            placeholderTextColor="#aaa"
+            keyboardType="numeric"
+          />
 
-        {/* Account No */}
-        {show.AccountNo && (
-          <>
-            <Text style={styles.label}>Account Number</Text>
-            {bankDetails.length > 0 ? (
+          <Text style={styles.label}>Received Amount</Text>
+          <TextInput
+            style={styles.input}
+            value={form.RecievedAmt}
+            onChangeText={v => setField('RecievedAmt', v)}
+            placeholder="Received amount"
+            placeholderTextColor="#aaa"
+            keyboardType="numeric"
+          />
+
+          <View style={styles.switchRow}>
+            <Text style={styles.label}>Direct Payment to Auth</Text>
+            <Switch
+              value={form.DirectPaymentToAuth as boolean}
+              onValueChange={v => setField('DirectPaymentToAuth', v)}
+            />
+          </View>
+
+          {/* Payment Mode */}
+          <Text style={styles.label}>Payment Mode</Text>
+          <View style={styles.pickerWrapper}>
+            <Picker
+              selectedValue={form.PaymentMode}
+              onValueChange={v => onPaymentModeChange(v)}
+              style={styles.picker}
+            >
+              <Picker.Item label="Select Mode" value="" />
+              {paymentModeList.map(m => (
+                <Picker.Item key={m.ID} label={m.Name} value={m.ID.toString()} />
+              ))}
+            </Picker>
+          </View>
+
+          {/* Account No */}
+          {show.AccountNo && (
+            <>
+              <Text style={styles.label}>Account Number</Text>
+              {bankDetails.length > 0 ? (
+                <View style={styles.pickerWrapper}>
+                  <Picker
+                    selectedValue={form.AccountNumberForDD}
+                    onValueChange={v => setField('AccountNumberForDD', v)}
+                    style={styles.picker}
+                  >
+                    <Picker.Item label="Select Account" value="" />
+                    {bankDetails.map((b, i) => (
+                      <Picker.Item
+                        key={i}
+                        label={b.AccountNumber}
+                        value={b.AccountNumber}
+                      />
+                    ))}
+                  </Picker>
+                </View>
+              ) : (
+                <TextInput
+                  style={styles.input}
+                  value={form.AccountNumberForText}
+                  onChangeText={v => setField('AccountNumberForText', v)}
+                  placeholder="Enter account number"
+                  placeholderTextColor="#aaa"
+                />
+              )}
+            </>
+          )}
+
+          {/* Cheque/Ref No */}
+          {show.ChqNo && (
+            <>
+              <Text style={styles.label}>Cheque / Ref Number</Text>
+              <TextInput
+                style={styles.input}
+                value={form.ChqNeft_Number}
+                onChangeText={v => setField('ChqNeft_Number', v)}
+                placeholder="Cheque/Ref No"
+                placeholderTextColor="#aaa"
+                keyboardType="numeric"
+              />
+            </>
+          )}
+
+          {/* Cheque Date */}
+          {show.ChqDt && (
+            <>
+              <Text style={styles.label}>Cheque / Payment Date</Text>
+              <TouchableOpacity
+                style={styles.input}
+                activeOpacity={0.7}
+                onPress={() => setShowChequeDatePicker(true)}
+              >
+                <Text
+                  style={
+                    form.ChequeDate
+                      ? styles.dateValueText
+                      : styles.datePlaceholderText
+                  }
+                >
+                  {form.ChequeDate || 'Select date'}
+                </Text>
+              </TouchableOpacity>
+
+              {showChequeDatePicker && (
+                <DateTimePicker
+                  value={parseDateFromYmd(form.ChequeDate)}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={onChequeDateChange}
+                />
+              )}
+            </>
+          )}
+
+          {/* Bank Name */}
+          {show.BankName && (
+            <>
+              <Text style={styles.label}>Bank Name</Text>
               <View style={styles.pickerWrapper}>
                 <Picker
-                  selectedValue={form.AccountNumberForDD}
-                  onValueChange={v => setField('AccountNumberForDD', v)}
+                  selectedValue={form.ChqNEFTOfBankNameMasterID}
+                  onValueChange={v => setField('ChqNEFTOfBankNameMasterID', v)}
                   style={styles.picker}
                 >
-                  <Picker.Item label="Select Account" value="" />
-                  {bankDetails.map((b: any, i: number) => (
+                  <Picker.Item label="Select Bank" value="" />
+                  {bankNameList.map(b => (
                     <Picker.Item
-                      key={i}
-                      label={b.AccountNumber}
-                      value={b.AccountNumber}
+                      key={b.ID}
+                      label={b.Name}
+                      value={b.ID.toString()}
                     />
                   ))}
                 </Picker>
               </View>
-            ) : (
+            </>
+          )}
+
+          {/* Branch */}
+          {show.BranchNo && (
+            <>
+              <Text style={styles.label}>Branch</Text>
               <TextInput
                 style={styles.input}
-                value={form.AccountNumberForText}
-                onChangeText={v => setField('AccountNumberForText', v)}
-                placeholder="Enter account number"
+                value={form.Branch_No}
+                onChangeText={v => setField('Branch_No', v)}
+                placeholder="Branch"
                 placeholderTextColor="#aaa"
               />
-            )}
-          </>
-        )}
+            </>
+          )}
 
-        {/* Cheque/Ref No */}
-        {show.ChqNo && (
-          <>
-            <Text style={styles.label}>Cheque / Ref Number</Text>
-            <TextInput
-              style={styles.input}
-              value={form.ChqNeft_Number}
-              onChangeText={v => setField('ChqNeft_Number', v)}
-              placeholder="Cheque/Ref No"
-              placeholderTextColor="#aaa"
-              keyboardType="numeric"
-            />
-          </>
-        )}
+          {/* Account Type */}
+          {show.AccountType && (
+            <>
+              <Text style={styles.label}>Account Type</Text>
+              <View style={styles.pickerWrapper}>
+                <Picker
+                  selectedValue={form.AccType}
+                  onValueChange={v => setField('AccType', v)}
+                  style={styles.picker}
+                >
+                  <Picker.Item label="Select Type" value="" />
+                  {bankAccountTypeList.map(a => (
+                    <Picker.Item
+                      key={a.ID}
+                      label={a.Name}
+                      value={a.ID.toString()}
+                    />
+                  ))}
+                </Picker>
+              </View>
+            </>
+          )}
 
-        {/* Cheque Date */}
-        {show.ChqDt && (
-          <>
-            <Text style={styles.label}>Cheque / Payment Date</Text>
-            <TouchableOpacity
-              style={styles.input}
-              activeOpacity={0.7}
-              onPress={() => setShowChequeDatePicker(true)}
-            >
-              <Text
-                style={
-                  form.ChequeDate
-                    ? styles.dateValueText
-                    : styles.datePlaceholderText
-                }
-              >
-                {form.ChequeDate || 'Select date'}
-              </Text>
-            </TouchableOpacity>
-
-            {showChequeDatePicker && (
-              <DateTimePicker
-                value={parseDateFromYmd(form.ChequeDate)}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={onChequeDateChange}
+          {/* IFSC */}
+          {show.IFSC && (
+            <>
+              <Text style={styles.label}>IFSC Code</Text>
+              <TextInput
+                style={styles.input}
+                value={form.IFSCCode}
+                onChangeText={v => setField('IFSCCode', v)}
+                placeholder="11-digit IFSC"
+                placeholderTextColor="#aaa"
+                maxLength={11}
+                autoCapitalize="characters"
               />
-            )}
-          </>
-        )}
+            </>
+          )}
 
-        {/* Bank Name */}
-        {show.BankName && (
-          <>
-            <Text style={styles.label}>Bank Name</Text>
-            <View style={styles.pickerWrapper}>
-              <Picker
-                selectedValue={form.ChqNEFTOfBankNameMasterID}
-                onValueChange={v => setField('ChqNEFTOfBankNameMasterID', v)}
-                style={styles.picker}
-              >
-                <Picker.Item label="Select Bank" value="" />
-                {bankNameList.map((b: any) => (
-                  <Picker.Item
-                    key={b.ID}
-                    label={b.Name}
-                    value={b.ID.toString()}
-                  />
-                ))}
-              </Picker>
-            </View>
-          </>
-        )}
+          {/* Account Holder */}
+          {show.AccHolderName && (
+            <>
+              <Text style={styles.label}>Account Holder Name</Text>
+              <TextInput
+                style={styles.input}
+                value={form.AccHolderName}
+                onChangeText={v => setField('AccHolderName', v)}
+                placeholder="Account Holder Name"
+                placeholderTextColor="#aaa"
+              />
+            </>
+          )}
 
-        {/* Branch */}
-        {show.BranchNo && (
-          <>
-            <Text style={styles.label}>Branch</Text>
-            <TextInput
-              style={styles.input}
-              value={form.Branch_No}
-              onChangeText={v => setField('Branch_No', v)}
-              placeholder="Branch"
-              placeholderTextColor="#aaa"
-            />
-          </>
-        )}
+          {/* Customer Name */}
+          {show.CustomerName && (
+            <>
+              <Text style={styles.label}>Customer Name</Text>
+              <TextInput
+                style={styles.input}
+                value={form.SalesLetter_Customer_Name}
+                onChangeText={v => setField('SalesLetter_Customer_Name', v)}
+                placeholder="Customer Name"
+                placeholderTextColor="#aaa"
+              />
+            </>
+          )}
 
-        {/* Account Type */}
-        {show.AccountType && (
-          <>
-            <Text style={styles.label}>Account Type</Text>
-            <View style={styles.pickerWrapper}>
-              <Picker
-                selectedValue={form.AccType}
-                onValueChange={v => setField('AccType', v)}
-                style={styles.picker}
-              >
-                <Picker.Item label="Select Type" value="" />
-                {bankAccountTypeList.map((a: any) => (
-                  <Picker.Item
-                    key={a.ID}
-                    label={a.Name}
-                    value={a.ID.toString()}
-                  />
-                ))}
-              </Picker>
-            </View>
-          </>
-        )}
+          {/* Financer */}
+          {show.FinancerName && (
+            <>
+              <Text style={styles.label}>Financer (Hypothication)</Text>
+              <View style={styles.pickerWrapper}>
+                <Picker
+                  selectedValue={form.HypothicationMasterID}
+                  onValueChange={v => setField('HypothicationMasterID', v)}
+                  style={styles.picker}
+                >
+                  <Picker.Item label="Select Financer" value="" />
+                  {hypothicationList.map(h => (
+                    <Picker.Item
+                      key={h.ID}
+                      label={h.Name}
+                      value={h.ID.toString()}
+                    />
+                  ))}
+                </Picker>
+              </View>
+            </>
+          )}
 
-        {/* IFSC */}
-        {show.IFSC && (
-          <>
-            <Text style={styles.label}>IFSC Code</Text>
-            <TextInput
-              style={styles.input}
-              value={form.IFSCCode}
-              onChangeText={v => setField('IFSCCode', v)}
-              placeholder="11-digit IFSC"
-              placeholderTextColor="#aaa"
-              maxLength={11}
-              autoCapitalize="characters"
-            />
-          </>
-        )}
+          {/* DSA */}
+          {show.DSAName && (
+            <>
+              <Text style={styles.label}>DSA</Text>
+              <View style={styles.pickerWrapper}>
+                <Picker
+                  selectedValue={form.DSABankMasterID}
+                  onValueChange={v => setField('DSABankMasterID', v)}
+                  style={styles.picker}
+                >
+                  <Picker.Item label="Select DSA" value="" />
+                  {dsaList.map(d => (
+                    <Picker.Item
+                      key={d.ID}
+                      label={d.Name}
+                      value={d.ID.toString()}
+                    />
+                  ))}
+                </Picker>
+              </View>
+            </>
+          )}
 
-        {/* Account Holder */}
-        {show.AccHolderName && (
-          <>
-            <Text style={styles.label}>Account Holder Name</Text>
-            <TextInput
-              style={styles.input}
-              value={form.AccHolderName}
-              onChangeText={v => setField('AccHolderName', v)}
-              placeholder="Account Holder Name"
-              placeholderTextColor="#aaa"
-            />
-          </>
-        )}
 
-        {/* Customer Name */}
-        {show.CustomerName && (
-          <>
-            <Text style={styles.label}>Customer Name</Text>
-            <TextInput
-              style={styles.input}
-              value={form.SalesLetter_Customer_Name}
-              onChangeText={v => setField('SalesLetter_Customer_Name', v)}
-              placeholder="Customer Name"
-              placeholderTextColor="#aaa"
-            />
-          </>
-        )}
 
-        {/* Financer */}
-        {show.FinancerName && (
-          <>
-            <Text style={styles.label}>Financer (Hypothication)</Text>
-            <View style={styles.pickerWrapper}>
-              <Picker
-                selectedValue={form.HypothicationMasterID}
-                onValueChange={v => setField('HypothicationMasterID', v)}
-                style={styles.picker}
-              >
-                <Picker.Item label="Select Financer" value="" />
-                {hypothicationList.map((h: any) => (
-                  <Picker.Item
-                    key={h.ID}
-                    label={h.Name}
-                    value={h.ID.toString()}
-                  />
-                ))}
-              </Picker>
-            </View>
-          </>
-        )}
+          {form.AdvanceRecieved && parseFloat(form.AdvanceRecieved) !== 0 ? (
+            <>
+              <Text style={styles.label}>Advance Remark (required)</Text>
+              <TextInput
+                style={styles.input}
+                value={form.AdvancePaymentRemark}
+                onChangeText={v => setField('AdvancePaymentRemark', v)}
+                placeholder="Advance remark"
+                placeholderTextColor="#aaa"
+              />
+            </>
+          ) : null}
 
-        {/* DSA */}
-        {show.DSAName && (
-          <>
-            <Text style={styles.label}>DSA</Text>
-            <View style={styles.pickerWrapper}>
-              <Picker
-                selectedValue={form.DSABankMasterID}
-                onValueChange={v => setField('DSABankMasterID', v)}
-                style={styles.picker}
-              >
-                <Picker.Item label="Select DSA" value="" />
-                {dsaList.map((d: any) => (
-                  <Picker.Item
-                    key={d.ID}
-                    label={d.Name}
-                    value={d.ID.toString()}
-                  />
-                ))}
-              </Picker>
-            </View>
-          </>
-        )}
+          <View style={styles.autoCalcRow}>
+            <Text style={styles.autoCalcText}>
+              Auto Calculated Total: {autoCalcTotal}
+            </Text>
+          </View>
 
-        {/* Amounts */}
-        <Text style={styles.label}>Advance Received</Text>
-        <TextInput
-          style={styles.input}
-          value={form.AdvanceRecieved}
-          onChangeText={v => {
-            setField('AdvanceRecieved', v);
-            setAutoCalcTotal(adjustedAmount + (parseFloat(v) || 0));
-          }}
-          placeholder="0"
-          placeholderTextColor="#aaa"
-          keyboardType="numeric"
-        />
 
-        {form.AdvanceRecieved && parseFloat(form.AdvanceRecieved) !== 0 ? (
-          <>
-            <Text style={styles.label}>Advance Remark (required)</Text>
-            <TextInput
-              style={styles.input}
-              value={form.AdvancePaymentRemark}
-              onChangeText={v => setField('AdvancePaymentRemark', v)}
-              placeholder="Advance remark"
-              placeholderTextColor="#aaa"
-            />
-          </>
-        ) : null}
 
-        <View style={styles.autoCalcRow}>
-          <Text style={styles.autoCalcText}>
-            Auto Calculated Total: {autoCalcTotal}
-          </Text>
-        </View>
-
-        <Text style={styles.label}>Received Amount</Text>
-        <TextInput
-          style={styles.input}
-          value={form.RecievedAmt}
-          onChangeText={v => setField('RecievedAmt', v)}
-          placeholder="Received amount"
-          placeholderTextColor="#aaa"
-          keyboardType="numeric"
-        />
-
-        <View style={styles.switchRow}>
-          <Text style={styles.label}>Direct Payment to Auth</Text>
-          <Switch
-            value={form.DirectPaymentToAuth as boolean}
-            onValueChange={v => setField('DirectPaymentToAuth', v)}
-          />
-        </View>
-
-        <View style={styles.navButtons}>
-          <TouchableOpacity style={styles.prevBtn} onPress={() => setStep(1)}>
-            <Text style={styles.btnText}>Previous</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.nextBtn} onPress={validateAndNext}>
-            <Text style={styles.btnText}>Review</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+          <View style={styles.navButtons}>
+            <TouchableOpacity style={styles.prevBtn} onPress={() => setStep(1)}>
+              <Text style={styles.btnText}>Previous</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.nextBtn} onPress={validateAndNext}>
+              <Text style={styles.btnText}>Review</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     );
   }
 
   // ── Step 3: Review + Submit ───────────────────────────────────────────────
   return (
-    <ScrollView
+    <KeyboardAvoidingView
       style={styles.container}
-      contentContainerStyle={styles.formContent}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
     >
-      <Text style={styles.sectionTitle}>Review Payment</Text>
-      <View style={styles.reviewCard}>
-        <Text style={styles.reviewRow}>Vendor: {selectedVendorName}</Text>
-        <Text style={styles.reviewRow}>
-          Payment Mode: {selectedPaymentModeText}
-        </Text>
-        <Text style={styles.reviewRow}>
-          Received Amount: {form.RecievedAmt}
-        </Text>
-        <Text style={styles.reviewRow}>
-          Cheque / Ref No: {form.ChqNeft_Number}
-        </Text>
-        <Text style={styles.reviewRow}>Date: {form.ChequeDate}</Text>
-        <Text style={styles.reviewRow}>
-          Vehicles selected: {vehicleList.filter(v => v.IsChecked).length}
-        </Text>
-        <Text style={styles.reviewRow}>
-          Epayments selected: {epaymentList.filter(e => e.IsChecked).length}
-        </Text>
-      </View>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={scrollContentStyle(styles.formContent)}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
+        <Text style={styles.sectionTitle}>Review Payment</Text>
+        <View style={styles.reviewCard}>
+          <Text style={styles.reviewRow}>Vendor: {selectedVendorName}</Text>
+          <Text style={styles.reviewRow}>
+            Payment Mode: {selectedPaymentModeText}
+          </Text>
+          <Text style={styles.reviewRow}>
+            Received Amount: {form.RecievedAmt}
+          </Text>
+          <Text style={styles.reviewRow}>
+            Cheque / Ref No: {form.ChqNeft_Number}
+          </Text>
+          <Text style={styles.reviewRow}>Date: {form.ChequeDate}</Text>
+          <Text style={styles.reviewRow}>
+            Vehicles selected: {vehicleList.filter(v => v.IsChecked).length}
+          </Text>
+          <Text style={styles.reviewRow}>
+            Epayments selected: {epaymentList.filter(e => e.IsChecked).length}
+          </Text>
+        </View>
 
-      <View style={styles.navButtons}>
-        <TouchableOpacity style={styles.prevBtn} onPress={() => setStep(2)}>
-          <Text style={styles.btnText}>Back</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
-          <Text style={styles.btnText}>Submit</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+        <View style={styles.navButtons}>
+          <TouchableOpacity style={styles.prevBtn} onPress={() => setStep(2)}>
+            <Text style={styles.btnText}>Back</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
+            <Text style={styles.btnText}>Submit</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
+  tabRow: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  tabBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabBtnActive: { borderBottomColor: '#3880ff' },
+  tabBtnText: { fontSize: 14, color: '#888', fontWeight: '600' },
+  tabBtnTextActive: { color: '#3880ff' },
   loaderFull: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   vendorLabel: {
     padding: 12,
@@ -1192,16 +1331,23 @@ const styles = StyleSheet.create({
   },
   companyItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     backgroundColor: '#fff',
     borderRadius: 8,
     padding: 14,
     marginBottom: 10,
     elevation: 1,
   },
-  companyName: { fontSize: 15, fontWeight: '600', color: '#222' },
+  companyName: {
+    flex: 1,
+    flexShrink: 1,
+    marginRight: 10,
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#222',
+  },
   companyBadge: {
+    flexShrink: 0,
     backgroundColor: '#3880ff',
     color: '#fff',
     borderRadius: 12,

@@ -14,7 +14,7 @@
  * The dashboard items from the API contain m_Item3 which is a route path string
  * (e.g. '/tabs/pendingsalesorder'). A routeMap translates these to RN screen names.
  */
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -26,12 +26,14 @@ import {
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useAppContext } from '../../context/AppContext';
 import {
   GetVendorListOfRM,
   RMDashboardData,
   LogoutEmployee,
 } from '../../services/api';
+import type { DashboardMenuItem, VendorItem } from '../../types/api';
 import HelperService from '../../utils/helpers';
 
 // Maps Angular route paths from API response → RN screen names.
@@ -53,16 +55,32 @@ const routeMap: Record<string, string> = {
 
 const RMDashboardScreen = () => {
   const navigation = useNavigation<any>();
-  const { sessionToken, selectedVendorId, setSelectedVendor, clearSession } =
-    useAppContext();
+  const {
+    sessionToken,
+    selectedVendorId,
+    selectedRMId,
+    loggedInEmployeeId,
+    employeeName,
+    setSelectedVendor,
+    setSelectedRM,
+    clearSession,
+  } = useAppContext();
 
-  const [vendors, setVendors] = useState<any[]>([]);
+  const [vendors, setVendors] = useState<VendorItem[]>([]);
   const [selectedVendor, setSelectedVendorLocal] = useState(
     selectedVendorId ?? '0',
   );
-  const [dashboardData, setDashboardData] = useState<any[]>([]);
+  const [dashboardData, setDashboardData] = useState<DashboardMenuItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [vendorsLoaded, setVendorsLoaded] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (selectedRMId === '0' && loggedInEmployeeId) {
+        setSelectedRM(loggedInEmployeeId, employeeName ?? '');
+      }
+    }, [selectedRMId, loggedInEmployeeId, employeeName, setSelectedRM]),
+  );
 
   // Load vendors on mount (mirrors constructor logic)
   useFocusEffect(
@@ -82,38 +100,39 @@ const RMDashboardScreen = () => {
     }, [sessionToken, vendorsLoaded]),
   );
 
+  const loadDashboardData = useCallback(
+    async (vendorId: string) => {
+      if (!sessionToken || !vendorId || vendorId === '0') {
+        setDashboardData([]);
+        return;
+      }
+      setIsLoading(true);
+      try {
+        const res = await RMDashboardData(sessionToken, vendorId);
+        if (res.IsSuccess) {
+          setDashboardData(res.Data);
+        } else {
+          HelperService.showAlert('Error', res.Msg);
+        }
+      } catch {
+        HelperService.showAlert('Error', 'Error in API.');
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [sessionToken],
+  );
+
   const handleVendorChange = async (value: string) => {
     console.log('[RMDashboard] Vendor selected:', value);
     setSelectedVendorLocal(value);
     setDashboardData([]);
     const vendor = vendors.find(v => v.ID.toString() === value.toString());
     await setSelectedVendor(value.toString(), vendor?.Name ?? '');
-    // await handleRefresh(); //auto refresh on vendor change
+    await loadDashboardData(value);
   };
 
-  const handleRefresh = async () => {
-    console.log('[RMDashboard] Refresh pressed, vendor:', selectedVendor);
-    if (!sessionToken || !selectedVendor) {
-      HelperService.showAlert('Alert', 'Please select a vendor first.');
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const res = await RMDashboardData(sessionToken, selectedVendor);
-      if (res.IsSuccess) {
-        console.log('RM Dashboard data received:', res.Data);
-        setDashboardData(res.Data);
-      } else {
-        HelperService.showAlert('Error', res.Msg);
-      }
-    } catch {
-      HelperService.showAlert('Error', 'Error in API.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     console.log('[RMDashboard] Logout pressed');
     Alert.alert('Logout', 'Are you sure you want to logout?', [
       { text: 'Cancel', style: 'cancel' },
@@ -138,7 +157,21 @@ const RMDashboardScreen = () => {
         },
       },
     ]);
-  };
+  }, [sessionToken, clearSession, navigation]);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={handleLogout}
+          style={styles.headerLogoutBtn}
+          accessibilityLabel="Logout"
+        >
+          <MaterialIcons name="logout" size={24} color="#000" />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, handleLogout]);
 
   const handleItemPress = (route: string) => {
     const screenName = routeMap[route];
@@ -153,7 +186,7 @@ const RMDashboardScreen = () => {
     }
   };
 
-  const renderItem = ({ item }: { item: any }) => (
+  const renderItem = ({ item }: { item: DashboardMenuItem }) => (
     <TouchableOpacity
       style={styles.listItem}
       onPress={() => handleItemPress(item.m_Item3)}
@@ -191,9 +224,7 @@ const RMDashboardScreen = () => {
           keyExtractor={(_, i) => i.toString()}
           renderItem={renderItem}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>
-              Select a vendor and tap Refresh
-            </Text>
+            <Text style={styles.emptyText}>Select a vendor to load dashboard</Text>
           }
           contentContainerStyle={styles.list}
         />
@@ -212,14 +243,6 @@ const RMDashboardScreen = () => {
             NSO Dealer (3 Days no Sales Order)
           </Text>
         </TouchableOpacity>
-        <View style={styles.footerRow}>
-          <TouchableOpacity style={styles.refreshBtn} onPress={handleRefresh}>
-            <Text style={styles.refreshBtnText}>↻ Refresh</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-            <Text style={styles.logoutBtnText}>Logout</Text>
-          </TouchableOpacity>
-        </View>
       </View>
     </View>
   );
@@ -278,28 +301,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   nsoBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  footerRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 10,
-    paddingBottom: 10,
-    gap: 8,
-  },
-  refreshBtn: {
-    flex: 1,
-    backgroundColor: '#3880ff',
-    borderRadius: 8,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  refreshBtnText: { color: '#fff', fontWeight: '600' },
-  logoutBtn: {
-    flex: 1,
-    backgroundColor: '#3880ff',
-    borderRadius: 8,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  logoutBtnText: { color: '#fff', fontWeight: '600' },
+  headerLogoutBtn: { marginRight: 15 },
 });
 
 export default RMDashboardScreen;

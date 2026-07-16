@@ -7,8 +7,6 @@
  * - param1='T' → show all data (VendorID=0, RMID=null/0 based on designation)
  * - API returns Data[0]=Pending, Data[1]=Hold, Data[2]=Rec_ServiceBook
  * - Search filters by Name or ChassisNumber across all tabs
- * - Rec_ServiceBook tab: ion-toggle (Statusid==135) → Switch to mark received
- * - Pending/Hold tabs: display only (no receive action)
  * - ServiceBookRecByRMForRM API call to mark received
  */
 import React, { useState, useCallback } from 'react';
@@ -18,10 +16,8 @@ import {
   FlatList,
   TextInput,
   TouchableOpacity,
-  Switch,
   StyleSheet,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { useFocusEffect, useRoute, RouteProp } from '@react-navigation/native';
 import { useAppContext } from '../../context/AppContext';
@@ -78,11 +74,7 @@ const ServiceBookStatusScreen = () => {
             console.log('ServiceBookStatusScreen loaded : ', res.Data);
             setPendingList(res.Data[0] ?? []);
             setHoldList(res.Data[1] ?? []);
-            setRecList(
-              (res.Data[2] ?? []).map(
-                (d): ServiceBookItem => ({ ...d, IsChecked: false }),
-              ),
-            );
+            setRecList(res.Data[2] ?? []);
           } else {
             HelperService.showAlert('Error', res.Msg);
           }
@@ -110,26 +102,9 @@ const ServiceBookStatusScreen = () => {
     );
   };
 
-  const getStatusEntryId = (item: ServiceBookItem) =>
-    item?.SLStatusID ?? item?.SalesletterStats_ID;
+  const handleMarkReceived = async (item: ServiceBookItem) => {
+    const statusEntryId = item?.SLStatusID ?? item?.SalesletterStats_ID;
 
-  const setRecItemChecked = (
-    statusEntryId: string | number,
-    checked: boolean,
-  ) => {
-    setRecList(prev =>
-      prev.map(d =>
-        getStatusEntryId(d) === statusEntryId ? { ...d, IsChecked: checked } : d,
-      ),
-    );
-  };
-
-  const handleToggleReceived = (item: ServiceBookItem, checked: boolean) => {
-    if (!checked) {
-      return;
-    }
-
-    const statusEntryId = getStatusEntryId(item);
     if (!statusEntryId) {
       HelperService.showAlert(
         'Error',
@@ -138,68 +113,63 @@ const ServiceBookStatusScreen = () => {
       return;
     }
 
-    setRecItemChecked(statusEntryId, true);
-
-    Alert.alert(
-      'Confirm!',
-      `Are you sure Customer Name: ${item.Name}. Chassis No. ${item.ChassisNumber}, Engine No. ${item.EngineNumber} of ${item.Name} is received?`,
-      [
-        {
-          text: 'No',
-          style: 'cancel',
-          onPress: () => setRecItemChecked(statusEntryId, false),
-        },
-        {
-          text: 'Yes',
-          onPress: async () => {
-            setIsLoading(true);
-            try {
-              const res = await ServiceBookRecByRMForRM(
-                statusEntryId,
-                sessionToken!,
-              );
-              if (res.IsSuccess) {
-                setRecList(prev =>
-                  prev.filter(d => getStatusEntryId(d) !== statusEntryId),
-                );
-                HelperService.showAlert('Success!', res.Msg);
-              } else {
-                setRecItemChecked(statusEntryId, false);
-                HelperService.showAlert('ERROR!!!', res.Msg);
-              }
-            } catch {
-              setRecItemChecked(statusEntryId, false);
-              HelperService.showAlert('Error', 'Error in API.');
-            } finally {
-              setIsLoading(false);
-            }
-          },
-        },
-      ],
+    console.log(
+      '[ServiceBookStatus] Mark Received pressed for:',
+      item.Name,
+      '| Chassis:',
+      item.ChassisNumber,
+    );
+    HelperService.showConfirm(
+      'Confirm',
+      `Mark service book received for ${item.Name}? Chassis: ${item.ChassisNumber}`,
+      async () => {
+        setIsLoading(true);
+        try {
+          const res = await ServiceBookRecByRMForRM(statusEntryId, sessionToken!);
+          if (res.IsSuccess) {
+            setPendingList(prev =>
+              prev.filter(
+                d => (d?.SLStatusID ?? d?.SalesletterStats_ID) !== statusEntryId,
+              ),
+            );
+            setRecList(prev =>
+              prev.filter(
+                d => (d?.SLStatusID ?? d?.SalesletterStats_ID) !== statusEntryId,
+              ),
+            );
+            HelperService.showAlert('Success!', res.Msg);
+          } else {
+            HelperService.showAlert('Error', res.Msg);
+          }
+        } catch {
+          HelperService.showAlert('Error', 'Error in API.');
+        } finally {
+          setIsLoading(false);
+        }
+      },
     );
   };
 
   const renderItem = ({ item }: { item: ServiceBookItem }) => (
     <View style={styles.card}>
-      <View style={styles.cardContent}>
-        <Text style={[styles.name, { fontSize: 16 }]}>{item.SoldTo_N}</Text>
-        <Text style={styles.name}>{item.Name}</Text>
-        <Text style={styles.detail}>Chassis No. : {item.ChassisNumber}</Text>
-        <Text style={styles.detail}>Engine No. : {item.EngineNumber}</Text>
-        <Text style={[styles.detail, { color: '#646262' }]}>
-          {item.ProductName}, {item.VehicleColor}
-        </Text>
-        <Text style={styles.detail}>Current Status : {item.Status_Name}</Text>
-        <Text style={styles.detail}>
-          Current Status Remark : {item.ServicebookStatusRemark}
-        </Text>
-      </View>
-      {activeTab === 'Rec_ServiceBook' && Number(item.Statusid) === 135 && (
-        <Switch
-          value={!!item.IsChecked}
-          onValueChange={checked => handleToggleReceived(item, checked)}
-          trackColor={{ true: '#3880ff' }}
-        />
+      <Text style={[styles.name, {fontSize: 16}]}>{item.SoldTo_N}</Text>
+      <Text style={styles.name}>{item.Name}</Text>
+      <Text style={styles.detail}>Chassis No. : {item.ChassisNumber}</Text>
+      <Text style={styles.detail}>Engine No. : {item.EngineNumber}</Text>
+      <Text style={[styles.detail, { color: '#646262' }]}>
+        {item.ProductName}, {item.VehicleColor}
+      </Text>
+      <Text style={styles.detail}>Current Status : {item.Status_Name}</Text>
+      <Text style={styles.detail}>
+        Current Status Remark : {item.ServicebookStatusRemark}
+      </Text>
+      {activeTab === 'Pending' && (
+        <TouchableOpacity
+          style={styles.recBtn}
+          onPress={() => handleMarkReceived(item)}
+        >
+          <Text style={styles.recBtnText}>Mark Received</Text>
+        </TouchableOpacity>
       )}
     </View>
   );
@@ -313,17 +283,22 @@ const styles = StyleSheet.create({
   loader: { flex: 1, marginTop: 40 },
   listContent: { paddingHorizontal: 12, paddingBottom: 12 },
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: '#fff',
     borderRadius: 8,
     padding: 14,
     marginBottom: 10,
     elevation: 1,
   },
-  cardContent: { flex: 1, marginRight: 10 },
   name: { fontWeight: '700', fontSize: 14, color: '#222', marginBottom: 4 },
   detail: { fontSize: 13, color: '#000', marginBottom: 2 },
+  recBtn: {
+    backgroundColor: '#3880ff',
+    borderRadius: 6,
+    paddingVertical: 8,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  recBtnText: { color: '#fff', fontWeight: '600', fontSize: 13 },
   emptyText: { textAlign: 'center', color: '#aaa', marginTop: 40 },
 });
 

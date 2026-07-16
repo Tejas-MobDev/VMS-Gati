@@ -14,20 +14,21 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { useAppContext } from '../../context/AppContext';
 import { VendorWithoutSalesOrderForRM } from '../../services/api';
+import type { VendorWithoutSalesOrderItem } from '../../types/api';
 import HelperService from '../../utils/helpers';
 
 const VendorsWithoutSalesOrderScreen = () => {
   const { sessionToken, selectedRMId } = useAppContext();
-  const [vendors, setVendors] = useState<any[]>([]);
+  const [vendors, setVendors] = useState<VendorWithoutSalesOrderItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-
+  // const selectedRMId = 670;
   useFocusEffect(
     useCallback(() => {
       if (!sessionToken) {
         return;
       }
       setIsLoading(true);
-    //   console.log('selected RM ; ', selectedRMId);
+      console.log('selected RM ; ', selectedRMId);
       VendorWithoutSalesOrderForRM(sessionToken, selectedRMId)
         .then(res => {
           if (res.IsSuccess) {

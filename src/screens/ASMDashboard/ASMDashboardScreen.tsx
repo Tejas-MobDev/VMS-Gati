@@ -12,7 +12,7 @@
  *
  * Ionic → RN: same as RMDashboard (Picker, FlatList, TouchableOpacity, routeMap)
  */
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useLayoutEffect } from 'react';
 import {
     View,
     Text,
@@ -32,6 +32,7 @@ import {
     ASMDashboardData,
     LogoutEmployee,
 } from '../../services/api';
+import type { DashboardMenuItem, DropdownItem, VendorItem } from '../../types/api';
 import HelperService from '../../utils/helpers';
 
 // Maps Angular route paths from API response → RN screen names.
@@ -63,14 +64,18 @@ const ASMDashboardScreen = () => {
         clearSession,
     } = useAppContext();
 
-    const [allVendors, setAllVendors] = useState<any[]>([]);
-    const [filteredVendors, setFilteredVendors] = useState<any[]>([]);
-    const [rmList, setRMList] = useState<any[]>([]);
+    const [allVendors, setAllVendors] = useState<VendorItem[]>([]);
+    const [filteredVendors, setFilteredVendors] = useState<VendorItem[]>([]);
+    const [rmList, setRMList] = useState<DropdownItem[]>([]);
     const [selectedVendorLocal, setSelectedVendorLocal] = useState(selectedVendorId ?? '0');
     const [selectedRMLocal, setSelectedRMLocal] = useState(selectedRMId ?? '0');
-    const [dashboardData, setDashboardData] = useState<any[]>([]);
+    const [dashboardData, setDashboardData] = useState<DashboardMenuItem[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [dataLoaded, setDataLoaded] = useState(false);
+
+    useEffect(() => {
+        setSelectedRMLocal(selectedRMId ?? '0');
+    }, [selectedRMId]);
 
     useFocusEffect(
         useCallback(() => {
@@ -89,6 +94,26 @@ const ASMDashboardScreen = () => {
                 } catch { }
             })();
         }, [sessionToken, dataLoaded]),
+    );
+
+    const loadDashboardData = useCallback(
+        async (vendorId: string, rmId: string) => {
+            if (!sessionToken) { return; }
+            setIsLoading(true);
+            try {
+                const res = await ASMDashboardData(sessionToken, vendorId, rmId);
+                if (res.IsSuccess) {
+                    setDashboardData(res.Data);
+                } else {
+                    HelperService.showAlert('Error', res.Msg);
+                }
+            } catch {
+                HelperService.showAlert('Error', 'Error in API.');
+            } finally {
+                setIsLoading(false);
+            }
+        },
+        [sessionToken],
     );
 
     const handleRMChange = async (value: string) => {
@@ -111,6 +136,7 @@ const ASMDashboardScreen = () => {
 
         const rm = rmList.find(r => r.ID.toString() === value.toString());
         await setSelectedRM(value.toString(), rm?.Name ?? '');
+        await loadDashboardData('0', value);
     };
 
     const handleVendorChange = async (value: string) => {
@@ -119,33 +145,10 @@ const ASMDashboardScreen = () => {
         setDashboardData([]);
         const vendor = allVendors.find(v => v.ID.toString() === value.toString());
         await setSelectedVendor(value.toString(), vendor?.Name ?? '');
-        // await handleRefresh(); // auto refresh on vendor change
+        await loadDashboardData(value, selectedRMLocal);
     };
 
-    const handleRefresh = async () => {
-        console.log('[ASMDashboard] Refresh pressed, vendor:', selectedVendorLocal, ', RM:', selectedRMLocal);
-        if (!sessionToken) { return; }
-        setIsLoading(true);
-        try {
-            const res = await ASMDashboardData(
-                sessionToken,
-                selectedVendorLocal,
-                selectedRMLocal,
-            );
-            console.log('[ASMDashboard] Refreshed', res);
-            if (res.IsSuccess) {
-                setDashboardData(res.Data);
-            } else {
-                HelperService.showAlert('Error', res.Msg);
-            }
-        } catch {
-            HelperService.showAlert('Error', 'Error in API.');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleLogout = async () => {
+    const handleLogout = useCallback(async () => {
         console.log('[ASMDashboard] Logout pressed');
         Alert.alert('Logout', 'Are you sure?', [
             { text: 'Cancel', style: 'cancel' },
@@ -170,7 +173,21 @@ const ASMDashboardScreen = () => {
                 },
             },
         ]);
-    };
+    }, [sessionToken, clearSession, navigation]);
+
+    useLayoutEffect(() => {
+        navigation.setOptions({
+            headerRight: () => (
+                <TouchableOpacity
+                    onPress={handleLogout}
+                    style={styles.headerLogoutBtn}
+                    accessibilityLabel="Logout"
+                >
+                    <MaterialIcons name="logout" size={24} color="#000" />
+                </TouchableOpacity>
+            ),
+        });
+    }, [navigation, handleLogout]);
 
     const handleItemPress = (route: string) => {
         const screenName = routeMap[route];
@@ -180,7 +197,7 @@ const ASMDashboardScreen = () => {
         }
     };
 
-    const renderItem = ({ item }: { item: any }) => (
+    const renderItem = ({ item }: { item: DashboardMenuItem }) => (
         <TouchableOpacity
             style={styles.listItem}
             onPress={() => handleItemPress(item.m_Item3)}>
@@ -229,7 +246,7 @@ const ASMDashboardScreen = () => {
                     keyExtractor={(_, i) => i.toString()}
                     renderItem={renderItem}
                     ListEmptyComponent={
-                        <Text style={styles.emptyText}>Select filters and tap Refresh</Text>
+                        <Text style={styles.emptyText}>Select RM or vendor to load dashboard</Text>
                     }
                     contentContainerStyle={styles.list}
                 />
@@ -250,20 +267,6 @@ const ASMDashboardScreen = () => {
                         NSO Dealer (3 Days no Sales Order)
                     </Text>
                 </TouchableOpacity>
-                <View style={styles.footerRow}>
-                    <TouchableOpacity style={styles.refreshBtn} onPress={handleRefresh}>
-                        <Text style={styles.refreshBtnText}>↻  Refresh</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-                        <Text style={styles.logoutBtnText}> Logout
-                            {/* <MaterialIcons
-                                name={'logout'}
-                                size={20}
-                                color="#fff"
-                            /> */}
-                        </Text>
-                    </TouchableOpacity>
-                </View>
             </View>
         </View>
     );
@@ -278,7 +281,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
     },
     pickerLabel: { fontSize: 12, color: '#888', paddingTop: 8 },
-    picker: { color: '#222' },
+    picker: { color: '#000' },
     loader: { flex: 1, marginTop: 40 },
     list: { paddingBottom: 12 },
     listItem: {
@@ -314,29 +317,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     dangerBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
-    footerRow: {
-        flexDirection: 'row',
-        paddingHorizontal: 10,
-        paddingBottom: 10,
-        paddingTop: 6,
-        gap: 8,
-    },
-    refreshBtn: {
-        flex: 1,
-        backgroundColor: '#3880ff',
-        borderRadius: 8,
-        paddingVertical: 10,
-        alignItems: 'center',
-    },
-    refreshBtnText: { color: '#fff', fontWeight: '600' },
-    logoutBtn: {
-        flex: 1,
-        backgroundColor: '#3880ff',
-        borderRadius: 8,
-        paddingVertical: 10,
-        alignItems: 'center',
-    },
-    logoutBtnText: { color: '#fff', fontWeight: '600' },
+    headerLogoutBtn: { marginRight: 10 },
 });
 
 export default ASMDashboardScreen;

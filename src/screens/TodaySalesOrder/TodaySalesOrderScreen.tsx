@@ -18,12 +18,13 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { useAppContext } from '../../context/AppContext';
 import { TodaysSalesorderForRM } from '../../services/api';
+import type { SalesOrderItem } from '../../types/api';
 import { dateTimeSplit } from '../../utils/formatters';
 import HelperService from '../../utils/helpers';
 
 const TodaySalesOrderScreen = () => {
     const { sessionToken, selectedVendorId, selectedRMId } = useAppContext();
-    const [orders, setOrders] = useState<any[]>([]);
+    const [orders, setOrders] = useState<SalesOrderItem[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
     useFocusEffect(
@@ -43,7 +44,7 @@ const TodaySalesOrderScreen = () => {
         }, [sessionToken, selectedVendorId, selectedRMId]),
     );
 
-    const renderItem = ({ item }: { item: any }) => (
+    const renderItem = ({ item }: { item: SalesOrderItem }) => (
         <View style={styles.card}>
             <Text style={styles.vendorName}>{item.InternalVendorName}</Text>
             <Text style={styles.detail}>

@@ -169,6 +169,16 @@ const DashboardStackNavigator = () => {
         component={HSRPNumberPendingScreen}
         options={{ title: 'HSRP Pending' }}
       />
+      <DashboardStack.Screen
+        name="AttachNewDocs"
+        component={AttachNewDocsScreen}
+        options={{ title: 'Attach Documents' }}
+      />
+      <DashboardStack.Screen
+        name="AddDocumentModal"
+        component={AddDocumentModalScreen}
+        options={{ title: 'Add Document' }}
+      />
     </DashboardStack.Navigator>
   );
 };

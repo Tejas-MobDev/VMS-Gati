@@ -8,12 +8,13 @@ import { View, Text, FlatList, StyleSheet, ActivityIndicator } from 'react-nativ
 import { useFocusEffect } from '@react-navigation/native';
 import { useAppContext } from '../../context/AppContext';
 import { GetPendingSalesLetterRequestForRM } from '../../services/api';
+import type { PendingSalesLetterItem } from '../../types/api';
 import { dateTimeSplit } from '../../utils/formatters';
 import HelperService from '../../utils/helpers';
 
 const PendingSalesLetterScreen = () => {
     const { sessionToken, selectedVendorId, selectedRMId } = useAppContext();
-    const [list, setList] = useState<any[]>([]);
+    const [list, setList] = useState<PendingSalesLetterItem[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
     useFocusEffect(
@@ -33,7 +34,7 @@ const PendingSalesLetterScreen = () => {
         }, [sessionToken, selectedVendorId, selectedRMId]),
     );
 
-    const renderItem = ({ item }: { item: any }) => (
+    const renderItem = ({ item }: { item: PendingSalesLetterItem }) => (
         <View style={styles.item}>
             <Text style={styles.chassis}>Chassis No: {item.ChasisNo}</Text>
             <Text style={styles.detail}>Engine No: {item.EngineNo}</Text>

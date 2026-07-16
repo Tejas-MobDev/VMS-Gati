@@ -4,6 +4,8 @@
  * Every screen that receives navigation params declares them here.
  */
 
+import type { DocLengthRule, NewDocumentData } from '../types/api';
+
 export type RootStackParamList = {
     SignIn: undefined;
     MainTabs: undefined;
@@ -64,10 +66,10 @@ export type SalesLetterStackParamList = {
     SLRecByRM: { param1?: string };
     ServiceBookStatus: { param1?: string };
     HSRPNumberPending: undefined;
-    AttachNewDocs: { SLID?: string; SL_ID?: string; newDoc?: any };
+    AttachNewDocs: { SLID?: string; SL_ID?: string; newDoc?: NewDocumentData };
     AddDocumentModal: {
-        compulsoryDocIDs: any[];
-        maxLengthDocIDList: any[];
+        compulsoryDocIDs: number[];
+        maxLengthDocIDList: DocLengthRule[];
         returnScreen: string;
         returnRouteKey?: string;
         returnSalesLetterID?: string;

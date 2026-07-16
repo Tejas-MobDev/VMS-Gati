@@ -35,6 +35,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import { useAppContext } from '../../context/AppContext';
 import { LogIn } from '../../services/api';
+import { extractEmployeeIdFromLoginResponse } from '../../utils/loginHelpers';
 import HelperService from '../../utils/helpers';
 
 const CURRENT_VERSION = '1.0.18';
@@ -43,7 +44,13 @@ type NavProp = NativeStackNavigationProp<RootStackParamList, 'SignIn'>;
 
 const SignInScreen = () => {
   const navigation = useNavigation<NavProp>();
-  const { setSessionToken, setDesignation, setEmployeeName } = useAppContext();
+  const {
+    setSessionToken,
+    setDesignation,
+    setEmployeeName,
+    setLoggedInEmployeeId,
+    setSelectedRM,
+  } = useAppContext();
 
   const [designation, setDesignationLocal] = useState('');
   const [userName, setUserName] = useState('');
@@ -86,11 +93,17 @@ const SignInScreen = () => {
       // console.log('login started with data:', loginData);
 
       const response = await LogIn(loginData);
-      // console.log('login Response:', response);
 
       if (response.IsSuccess === true) {
         const token = response.Data.SessionTok;
-        console.log('Saving data into SessionToken:', token);
+        console.log('[SignIn] Login response Data:', response);
+
+        const employeeId = extractEmployeeIdFromLoginResponse(
+          response.Data,
+          response as unknown as Record<string, unknown>,
+        );
+        console.log('[SignIn] Extracted employee ID:', employeeId);
+
         await setSessionToken(token);
         await setDesignation(designation as 'RM' | 'ASM');
 
@@ -101,6 +114,18 @@ const SignInScreen = () => {
           response.Data.UserName ||
           userName;
         await setEmployeeName(nameToStore);
+
+        if (employeeId) {
+          await setLoggedInEmployeeId(employeeId);
+          if (designation === 'RM') {
+            console.log('selected RM ; ', employeeId);
+            await setSelectedRM(employeeId, nameToStore);
+          }
+        } else if (designation === 'RM') {
+          console.warn(
+            '[SignIn] RM login succeeded but no employee ID found in response.',
+          );
+        }
 
         // Replace entire navigation stack — mirrors NavController.navigateRoot()
         navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });

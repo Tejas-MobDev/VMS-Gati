@@ -34,6 +34,7 @@ import {
   GetCurrentSLHoldForRM,
   GetCurrentSLInProgressForRM,
 } from '../../services/api';
+import type { SalesLetterUpdateItem } from '../../types/api';
 import { formatSLStatus, dateTimeSplit } from '../../utils/formatters';
 import HelperService from '../../utils/helpers';
 
@@ -48,9 +49,9 @@ const SLCurrentUpdatesScreen = () => {
   const [searchText, setSearchText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const [requestedList, setRequestedList] = useState<any[]>([]);
-  const [holdList, setHoldList] = useState<any[]>([]);
-  const [inProgressList, setInProgressList] = useState<any[]>([]);
+  const [requestedList, setRequestedList] = useState<SalesLetterUpdateItem[]>([]);
+  const [holdList, setHoldList] = useState<SalesLetterUpdateItem[]>([]);
+  const [inProgressList, setInProgressList] = useState<SalesLetterUpdateItem[]>([]);
 
   // Flags to avoid re-fetching on tab switch — mirrors Angular's isXxxMade
   const [requestedLoaded, setRequestedLoaded] = useState(false);
@@ -156,7 +157,7 @@ const SLCurrentUpdatesScreen = () => {
     });
   };
 
-  const handleHoldCardPress = (item: any) => {
+  const handleHoldCardPress = (item: SalesLetterUpdateItem) => {
     const statusId = Number(item?.Statusid);
     if (statusId === 59 || statusId === 43) {
       navigateToAttachDocs(String(item?.Id ?? ''));
@@ -168,8 +169,8 @@ const SLCurrentUpdatesScreen = () => {
     Alert.alert('Current status', `${stat}(${remark})`);
   };
 
-  const getActiveList = (): any[] => {
-    let base: any[] = [];
+  const getActiveList = (): SalesLetterUpdateItem[] => {
+    let base: SalesLetterUpdateItem[] = [];
     if (activeTab === 'Requested') {
       base = requestedList;
     } else if (activeTab === 'Hold') {
@@ -189,7 +190,7 @@ const SLCurrentUpdatesScreen = () => {
     );
   };
 
-  const renderCardContent = (item: any) => (
+  const renderCardContent = (item: SalesLetterUpdateItem) => (
     <>
       <Text style={styles.dealerName}>{item.Name}</Text>
       <Text style={styles.detail}>Chassis: {item.ChassisNumber}</Text>
@@ -202,7 +203,7 @@ const SLCurrentUpdatesScreen = () => {
         {new Date(item.SalesletterCreatedDate).toLocaleDateString('en-GB')}
       </Text>
       <Text style={styles.detail}>
-        Status: {formatSLStatus({ Statusid: item.Statusid, Stat: item.Stat })}
+        Status: {formatSLStatus({ Statusid: Number(item.Statusid), Stat: item.Stat })}
       </Text>
       <Text style={styles.detail}>
         Updated on: {new Date(item.CreatedDate).toLocaleDateString('en-GB')}
@@ -222,7 +223,7 @@ const SLCurrentUpdatesScreen = () => {
     </>
   );
 
-  const renderItem = ({ item }: { item: any }) => {
+  const renderItem = ({ item }: { item: SalesLetterUpdateItem }) => {
     if (activeTab === 'Hold') {
       return (
         <TouchableOpacity
