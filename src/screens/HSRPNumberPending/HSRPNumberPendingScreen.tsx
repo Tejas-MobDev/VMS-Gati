@@ -16,8 +16,8 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
 } from 'react-native';
+import { CardListSkeleton } from '../../components/CardListSkeleton';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAppContext } from '../../context/AppContext';
 import {
@@ -171,7 +171,7 @@ const HSRPNumberPendingScreen = () => {
       </View>
 
       {isLoading ? (
-        <ActivityIndicator style={styles.loader} size="large" color="#3880ff" />
+        <CardListSkeleton showActionButton detailLines={3} />
       ) : (
         <FlatList
           data={displayList}
@@ -219,7 +219,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#222',
   },
-  loader: { flex: 1, marginTop: 40 },
   listContent: { paddingHorizontal: 12, paddingBottom: 12 },
   card: {
     backgroundColor: '#fff',

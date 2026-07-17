@@ -19,12 +19,12 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  ActivityIndicator,
   Switch,
   FlatList,
   Platform,
   KeyboardAvoidingView,
 } from 'react-native';
+import { CompanyListSkeleton } from '../../components/CompanyListSkeleton';
 import { Picker } from '@react-native-picker/picker';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import AntDesign from 'react-native-vector-icons/AntDesign';
@@ -353,7 +353,7 @@ const PaymentRecWithoutAmtScreen = () => {
   if (isLoading) {
     return (
       <View style={styles.loaderFull}>
-        <ActivityIndicator size="large" color="#3880ff" />
+        <CompanyListSkeleton />
       </View>
     );
   }

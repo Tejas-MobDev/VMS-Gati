@@ -11,8 +11,8 @@ import {
   Text,
   FlatList,
   StyleSheet,
-  ActivityIndicator,
 } from 'react-native';
+import { CardListSkeleton } from '../../components/CardListSkeleton';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAppContext } from '../../context/AppContext';
 import { LastFewDaysPending_GoodsDispatchForRM } from '../../services/api';
@@ -66,7 +66,7 @@ const PendingSalesOrderScreen = () => {
   return (
     <View style={styles.container}>
       {isLoading ? (
-        <ActivityIndicator style={styles.loader} size="large" color="#3880ff" />
+        <CardListSkeleton showCountBadge detailLines={5} />
       ) : (
         <FlatList
           data={orders}
@@ -89,7 +89,6 @@ const PendingSalesOrderScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
-  loader: { flex: 1, marginTop: 40 },
   list: { padding: 12 },
   countBadge: {
     backgroundColor: '#3880ff',

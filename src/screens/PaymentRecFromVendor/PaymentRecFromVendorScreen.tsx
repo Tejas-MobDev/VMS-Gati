@@ -29,13 +29,13 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  ActivityIndicator,
   Switch,
   FlatList,
   Platform,
   KeyboardAvoidingView,
   Keyboard,
 } from 'react-native';
+import { CompanyListSkeleton } from '../../components/CompanyListSkeleton';
 import DateTimePicker, {
   DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
@@ -768,7 +768,7 @@ const PaymentRecFromVendorScreen = () => {
   if (isLoading) {
     return (
       <View style={styles.loaderFull}>
-        <ActivityIndicator size="large" color="#3880ff" />
+        <CompanyListSkeleton />
       </View>
     );
   }

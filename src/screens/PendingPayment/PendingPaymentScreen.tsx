@@ -20,9 +20,9 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   ScrollView,
 } from 'react-native';
+import { CardListSkeleton } from '../../components/CardListSkeleton';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAppContext } from '../../context/AppContext';
 import {
@@ -256,14 +256,6 @@ const PendingPaymentScreen = () => {
         ))}
       </View>
 
-      {isLoading && (
-        <ActivityIndicator
-          style={styles.loaderOverlay}
-          size="large"
-          color="#3880ff"
-        />
-      )}
-
       {activeTab === 'Vehicle' && (
         <>
           <View style={styles.searchRow}>
@@ -275,22 +267,24 @@ const PendingPaymentScreen = () => {
               onChangeText={handleSearch}
             />
           </View>
-          {/* <View style={styles.totalRow}> */}
           <View style={styles.countBadge}>
             <Text style={styles.totalText}>
               Total Balance: {totalVehicleBalance}
             </Text>
           </View>
-          {/* </View> */}
-          <FlatList
-            data={filteredVehicleList}
-            keyExtractor={(_, i) => i.toString()}
-            renderItem={renderVehicleItem}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>No pending vehicle payments.</Text>
-            }
-            contentContainerStyle={styles.listContent}
-          />
+          {isLoading ? (
+            <CardListSkeleton showCountBadge detailLines={8} showActionButton />
+          ) : (
+            <FlatList
+              data={filteredVehicleList}
+              keyExtractor={(_, i) => i.toString()}
+              renderItem={renderVehicleItem}
+              ListEmptyComponent={
+                <Text style={styles.emptyText}>No pending vehicle payments.</Text>
+              }
+              contentContainerStyle={styles.listContent}
+            />
+          )}
         </>
       )}
 
@@ -301,15 +295,19 @@ const PendingPaymentScreen = () => {
               Total Balance: {totalEpaymentBalance}
             </Text>
           </View>
-          <FlatList
-            data={epaymentList}
-            keyExtractor={(_, i) => i.toString()}
-            renderItem={renderEpaymentItem}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>No pending epayments.</Text>
-            }
-            contentContainerStyle={styles.listContent}
-          />
+          {isLoading ? (
+            <CardListSkeleton detailLines={7} showActionButton />
+          ) : (
+            <FlatList
+              data={epaymentList}
+              keyExtractor={(_, i) => i.toString()}
+              renderItem={renderEpaymentItem}
+              ListEmptyComponent={
+                <Text style={styles.emptyText}>No pending epayments.</Text>
+              }
+              contentContainerStyle={styles.listContent}
+            />
+          )}
         </>
       )}
     </View>
@@ -334,7 +332,6 @@ const styles = StyleSheet.create({
   tabBtnActive: { borderBottomColor: '#3880ff' },
   tabBtnText: { fontSize: 14, color: '#888', fontWeight: '600' },
   tabBtnTextActive: { color: '#3880ff' },
-  loaderOverlay: { marginTop: 20 },
   searchRow: {
     padding: 10,
     backgroundColor: '#fff',

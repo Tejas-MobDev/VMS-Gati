@@ -21,8 +21,8 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
 } from 'react-native';
+import { CardListSkeleton } from '../../components/CardListSkeleton';
 import {
   useFocusEffect,
   useNavigation,
@@ -287,7 +287,7 @@ const SLCurrentUpdatesScreen = () => {
       </View>
       {/* List */}
       {isLoading ? (
-        <ActivityIndicator style={styles.loader} size="large" color="#3880ff" />
+        <CardListSkeleton showCountBadge detailLines={7} />
       ) : (
         <FlatList
           data={displayList}
@@ -352,7 +352,6 @@ const styles = StyleSheet.create({
   //     fontWeight: '700',
   //     color: '#444',
   // },
-  loader: { flex: 1, marginTop: 40 },
   listContent: { paddingHorizontal: 12, paddingBottom: 12 },
   card: {
     backgroundColor: '#fff',

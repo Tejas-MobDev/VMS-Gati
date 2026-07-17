@@ -20,9 +20,9 @@ import {
   TouchableOpacity,
   Switch,
   StyleSheet,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
+import { ToggleListSkeleton } from '../../components/ToggleListSkeleton';
 import { useFocusEffect, useRoute, RouteProp } from '@react-navigation/native';
 import { useAppContext } from '../../context/AppContext';
 import {
@@ -250,7 +250,7 @@ const ServiceBookStatusScreen = () => {
         <Text style={styles.totalText}>Total: {displayList.length}</Text>
       </View>
       {isLoading ? (
-        <ActivityIndicator style={styles.loader} size="large" color="#3880ff" />
+        <ToggleListSkeleton showCountBadge detailLines={6} />
       ) : (
         <FlatList
           data={displayList}
@@ -310,7 +310,6 @@ const styles = StyleSheet.create({
     // marginBottom: 10,
   },
   totalText: { fontWeight: '700', color: '#fff', fontSize: 12 },
-  loader: { flex: 1, marginTop: 40 },
   listContent: { paddingHorizontal: 12, paddingBottom: 12 },
   card: {
     flexDirection: 'row',

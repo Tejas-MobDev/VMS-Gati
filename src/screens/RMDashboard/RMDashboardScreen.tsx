@@ -21,9 +21,9 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
+import { DashboardListSkeleton } from '../../components/DashboardListSkeleton';
 import { Picker } from '@react-native-picker/picker';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -217,7 +217,7 @@ const RMDashboardScreen = () => {
 
       {/* Dashboard list */}
       {isLoading ? (
-        <ActivityIndicator style={styles.loader} size="large" color="#3880ff" />
+        <DashboardListSkeleton />
       ) : (
         <FlatList
           data={dashboardData}
@@ -258,7 +258,6 @@ const styles = StyleSheet.create({
   },
   pickerLabel: { fontSize: 12, color: '#383737', paddingTop: 8 },
   picker: { color: '#000' },
-  loader: { flex: 1, marginTop: 40 },
   list: { paddingBottom: 12 },
   listItem: {
     flexDirection: 'row',

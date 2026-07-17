@@ -8,8 +8,8 @@ import {
   Text,
   FlatList,
   StyleSheet,
-  ActivityIndicator,
 } from 'react-native';
+import { CardListSkeleton } from '../../components/CardListSkeleton';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAppContext } from '../../context/AppContext';
 import { getPaymentPendingMorethan5daysofVendorForRM } from '../../services/api';
@@ -43,7 +43,7 @@ const PendingPaymentFiveDaysOldScreen = () => {
   return (
     <View style={styles.container}>
       {isLoading ? (
-        <ActivityIndicator style={styles.loader} size="large" color="#3880ff" />
+        <CardListSkeleton detailLines={3} />
       ) : (
         <FlatList
           data={list}
@@ -70,7 +70,6 @@ const PendingPaymentFiveDaysOldScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
-  loader: { flex: 1, marginTop: 40 },
   card: {
     backgroundColor: '#fff',
     borderRadius: 8,

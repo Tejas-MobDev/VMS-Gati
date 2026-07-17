@@ -9,8 +9,8 @@ import {
   Text,
   FlatList,
   StyleSheet,
-  ActivityIndicator,
 } from 'react-native';
+import { SimpleListSkeleton } from '../../components/SimpleListSkeleton';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAppContext } from '../../context/AppContext';
 import { VendorWithoutSalesOrderForRM } from '../../services/api';
@@ -45,7 +45,7 @@ const VendorsWithoutSalesOrderScreen = () => {
   return (
     <View style={styles.container}>
       {isLoading ? (
-        <ActivityIndicator style={styles.loader} size="large" color="#3880ff" />
+        <SimpleListSkeleton />
       ) : (
         <FlatList
           data={vendors}
@@ -69,7 +69,6 @@ const VendorsWithoutSalesOrderScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
-  loader: { flex: 1, marginTop: 40 },
   list: { padding: 12 },
   item: {
     backgroundColor: '#fff',

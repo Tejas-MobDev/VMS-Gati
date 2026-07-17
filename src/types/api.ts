@@ -33,6 +33,8 @@ export interface LoginResponseData {
   EmployeeID?: number | string;
   EmpID?: number | string;
   UserID?: number | string;
+  UserId?: number | string;
+  Designation?: string;
   EmployeeName?: string;
   EmpName?: string;
   Name?: string;
@@ -42,6 +44,12 @@ export interface LoginResponseData {
   User?: Record<string, unknown>;
   LoginEmployee?: Record<string, unknown>;
   [key: string]: unknown;
+}
+
+/** Login API returns UserId and Designation at the top level alongside Data. */
+export interface LoginResponse extends ApiResponse<LoginResponseData> {
+  UserId?: number | string;
+  Designation?: string;
 }
 
 // ─── Shared list / dropdown items ────────────────────────────────────────────

@@ -27,6 +27,7 @@ import type {
   EpaymentCompanyWithDropdowns,
   HSRPItem,
   LoginRequest,
+  LoginResponse,
   LoginResponseData,
   MobileDropdownItem,
   PaymentCompanyWithDropdowns,
@@ -97,7 +98,7 @@ async function apiPost<T>(
 
 export function LogIn(
   LoginData: LoginRequest,
-): Promise<ApiResponse<LoginResponseData>> {
+): Promise<LoginResponse> {
   return apiPost(BASE_PATH + 'MobileLogin/LoginEmployees', defaultHeaders, LoginData);
 }
 

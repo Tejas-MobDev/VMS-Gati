@@ -20,9 +20,9 @@ import {
   Switch,
   TextInput,
   StyleSheet,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
+import { ToggleListSkeleton } from '../../components/ToggleListSkeleton';
 import { useFocusEffect, useRoute, RouteProp } from '@react-navigation/native';
 import { useAppContext } from '../../context/AppContext';
 import {
@@ -169,7 +169,7 @@ const SLRecByRMScreen = () => {
         <Text style={styles.totalText}>Total: {filteredList.length}</Text>
       </View>
       {isLoading ? (
-        <ActivityIndicator style={styles.loader} size="large" color="#3880ff" />
+        <ToggleListSkeleton showCountBadge detailLines={4} />
       ) : (
         <FlatList
           data={filteredList}
@@ -218,7 +218,6 @@ const styles = StyleSheet.create({
   //     fontWeight: '700',
   //     color: '#444',
   //   },
-  loader: { flex: 1, marginTop: 40 },
   listContent: { paddingHorizontal: 12, paddingBottom: 12 },
   item: {
     flexDirection: 'row',

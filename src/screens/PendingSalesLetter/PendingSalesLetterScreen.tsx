@@ -4,7 +4,8 @@
  * React Native: Simple list with useFocusEffect.
  */
 import React, { useState, useCallback } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, StyleSheet } from 'react-native';
+import { CardListSkeleton } from '../../components/CardListSkeleton';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAppContext } from '../../context/AppContext';
 import { GetPendingSalesLetterRequestForRM } from '../../services/api';
@@ -56,7 +57,7 @@ const PendingSalesLetterScreen = () => {
     return (
         <View style={styles.container}>
             {isLoading ? (
-                <ActivityIndicator style={styles.loader} size="large" color="#3880ff" />
+                <CardListSkeleton showCountBadge detailLines={5} />
             ) : (
                 <FlatList
                     data={list}
@@ -81,7 +82,6 @@ const PendingSalesLetterScreen = () => {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f5f5f5' },
-    loader: { flex: 1, marginTop: 40 },
     listContent: { padding: 12 },
     countBadge: {
         backgroundColor: '#3880ff',

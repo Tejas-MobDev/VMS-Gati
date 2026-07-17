@@ -25,11 +25,12 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { DocGridSkeleton } from '../../components/DocGridSkeleton';
+import { ButtonSkeleton } from '../../components/ButtonSkeleton';
 import {
   useFocusEffect,
   useNavigation,
@@ -310,11 +311,7 @@ const AttachNewDocsScreen = () => {
         {/* Document grid */}
 
         {isLoading ? (
-          <ActivityIndicator
-            style={styles.loader}
-            size="large"
-            color="#3880ff"
-          />
+          <DocGridSkeleton itemCount={4} />
         ) : (
           <FlatList
             data={mergedDocs}
@@ -349,7 +346,7 @@ const AttachNewDocsScreen = () => {
           disabled={isSubmitDisabled || isLoading}
         >
           {isLoading ? (
-            <ActivityIndicator color="#fff" />
+            <ButtonSkeleton />
           ) : (
             <Text style={styles.submitBtnText}>Submit</Text>
           )}
@@ -371,7 +368,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   addBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  loader: { marginVertical: 20 },
   docGrid: { paddingBottom: 12 },
   columnWrapper: {
     justifyContent: 'space-between',

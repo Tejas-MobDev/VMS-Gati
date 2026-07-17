@@ -1,10 +1,12 @@
-import type { LoginResponseData } from '../types/api';
+import type { Designation } from '../context/AppContext';
+import type { LoginResponse, LoginResponseData } from '../types/api';
 
 const DIRECT_ID_FIELDS = [
   'ID',
   'EmployeeID',
   'EmpID',
   'UserID',
+  'UserId',
   'EmployeeId',
   'EmpId',
   'RMID',
@@ -95,4 +97,31 @@ export function extractEmployeeIdFromLoginResponse(
     extractEmployeeIdFromLogin(data) ??
     (response ? extractEmployeeIdFromLogin(response) : null)
   );
+}
+
+export function extractUserIdFromLoginResponse(
+  response: LoginResponse,
+): string | null {
+  if (isValidId(response.UserId)) {
+    return String(response.UserId);
+  }
+  return extractEmployeeIdFromLoginResponse(
+    response.Data,
+    response as unknown as Record<string, unknown>,
+  );
+}
+
+export function extractDesignationFromLoginResponse(
+  response: LoginResponse,
+  fallback?: string,
+): Designation {
+  const raw =
+    response.Designation ??
+    response.Data?.Designation ??
+    fallback ??
+    null;
+  if (raw === 'RM' || raw === 'ASM') {
+    return raw;
+  }
+  return null;
 }

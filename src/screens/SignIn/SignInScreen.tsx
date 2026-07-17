@@ -11,7 +11,7 @@
  *   [(ngModel)]            → useState + onChangeText
  *   NavController.navigateRoot() → navigation.reset() — clears back stack
  *
- * Loading: local isLoading state drives ActivityIndicator overlay.
+ * Loading: local isLoading state drives button skeleton.
  * Auth: on success stores token + designation in AppContext then resets nav.
  */
 import React, { useState } from 'react';
@@ -21,12 +21,12 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   ScrollView,
   Image,
   Platform,
   KeyboardAvoidingView,
 } from 'react-native';
+import { ButtonSkeleton } from '../../components/ButtonSkeleton';
 import axios from 'axios';
 import { Picker } from '@react-native-picker/picker';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -35,7 +35,10 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import { useAppContext } from '../../context/AppContext';
 import { LogIn } from '../../services/api';
-import { extractEmployeeIdFromLoginResponse } from '../../utils/loginHelpers';
+import {
+  extractDesignationFromLoginResponse,
+  extractUserIdFromLoginResponse,
+} from '../../utils/loginHelpers';
 import HelperService from '../../utils/helpers';
 
 const CURRENT_VERSION = '1.0.18';
@@ -96,16 +99,22 @@ const SignInScreen = () => {
 
       if (response.IsSuccess === true) {
         const token = response.Data.SessionTok;
-        console.log('[SignIn] Login response Data:', response);
+        console.log('[SignIn] Login response:', response);
 
-        const employeeId = extractEmployeeIdFromLoginResponse(
-          response.Data,
-          response as unknown as Record<string, unknown>,
+        const userId = extractUserIdFromLoginResponse(response);
+        const resolvedDesignation = extractDesignationFromLoginResponse(
+          response,
+          designation,
         );
-        console.log('[SignIn] Extracted employee ID:', employeeId);
+        console.log('[SignIn] UserId:', userId, 'Designation:', resolvedDesignation);
+
+        if (!resolvedDesignation) {
+          HelperService.showAlert('Error', 'Invalid designation in login response.');
+          return;
+        }
 
         await setSessionToken(token);
-        await setDesignation(designation as 'RM' | 'ASM');
+        await setDesignation(resolvedDesignation);
 
         const nameToStore =
           response.Data.EmployeeName ||
@@ -115,15 +124,15 @@ const SignInScreen = () => {
           userName;
         await setEmployeeName(nameToStore);
 
-        if (employeeId) {
-          await setLoggedInEmployeeId(employeeId);
-          if (designation === 'RM') {
-            console.log('selected RM ; ', employeeId);
-            await setSelectedRM(employeeId, nameToStore);
+        if (userId) {
+          await setLoggedInEmployeeId(userId);
+          if (resolvedDesignation === 'RM') {
+            console.log('[SignIn] RM login — setting selectedRMId:', userId);
+            await setSelectedRM(userId, nameToStore);
           }
-        } else if (designation === 'RM') {
+        } else if (resolvedDesignation === 'RM') {
           console.warn(
-            '[SignIn] RM login succeeded but no employee ID found in response.',
+            '[SignIn] RM login succeeded but no UserId found in response.',
           );
         }
 
@@ -253,7 +262,7 @@ const SignInScreen = () => {
           disabled={isLoading}
         >
           {isLoading ? (
-            <ActivityIndicator color="#fff" />
+            <ButtonSkeleton />
           ) : (
             <Text style={styles.loginBtnText}>Login</Text>
           )}
