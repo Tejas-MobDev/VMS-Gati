@@ -260,6 +260,11 @@ export interface PaymentCompany {
 
 export interface BankAccountDetail {
   AccountNumber: string;
+  BankNameMasterID?: string | number;
+  Branch?: string;
+  AccType?: string;
+  IFSCCode?: string;
+  AccHolderName?: string;
 }
 
 export type PaymentDropdownLists = [

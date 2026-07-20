@@ -14,7 +14,7 @@
  * The dashboard items from the API contain m_Item3 which is a route path string
  * (e.g. '/tabs/pendingsalesorder'). A routeMap translates these to RN screen names.
  */
-import React, { useState, useCallback, useLayoutEffect } from 'react';
+import React, { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import { DashboardListSkeleton } from '../../components/DashboardListSkeleton';
 import { Picker } from '@react-native-picker/picker';
@@ -57,6 +59,7 @@ const RMDashboardScreen = () => {
   const navigation = useNavigation<any>();
   const {
     sessionToken,
+    isAuthChecked,
     selectedVendorId,
     selectedRMId,
     loggedInEmployeeId,
@@ -73,6 +76,16 @@ const RMDashboardScreen = () => {
   const [dashboardData, setDashboardData] = useState<DashboardMenuItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [vendorsLoaded, setVendorsLoaded] = useState(false);
+  const selectedVendorRef = useRef(selectedVendor);
+  selectedVendorRef.current = selectedVendor;
+  const initialLoadDoneRef = useRef(false);
+  const appStateRef = useRef(AppState.currentState);
+
+  useEffect(() => {
+    if (isAuthChecked) {
+      setSelectedVendorLocal(selectedVendorId ?? '0');
+    }
+  }, [isAuthChecked, selectedVendorId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -102,7 +115,7 @@ const RMDashboardScreen = () => {
 
   const loadDashboardData = useCallback(
     async (vendorId: string) => {
-      if (!sessionToken || !vendorId || vendorId === '0') {
+      if (!sessionToken || vendorId == null || vendorId === '') {
         setDashboardData([]);
         return;
       }
@@ -122,6 +135,40 @@ const RMDashboardScreen = () => {
     },
     [sessionToken],
   );
+
+  // Auto-load once after login / app restart with the current vendor selection.
+  useEffect(() => {
+    if (
+      !isAuthChecked ||
+      !sessionToken ||
+      !vendorsLoaded ||
+      initialLoadDoneRef.current
+    ) {
+      return;
+    }
+    initialLoadDoneRef.current = true;
+    const vendorId = selectedVendorId ?? '0';
+    loadDashboardData(vendorId);
+  }, [isAuthChecked, sessionToken, vendorsLoaded, selectedVendorId, loadDashboardData]);
+
+  // Refresh when app returns from background (not on in-app navigation).
+  useEffect(() => {
+    const subscription = AppState.addEventListener(
+      'change',
+      (nextState: AppStateStatus) => {
+        if (
+          appStateRef.current.match(/inactive|background/) &&
+          nextState === 'active' &&
+          sessionToken &&
+          vendorsLoaded
+        ) {
+          loadDashboardData(selectedVendorRef.current);
+        }
+        appStateRef.current = nextState;
+      },
+    );
+    return () => subscription.remove();
+  }, [sessionToken, vendorsLoaded, loadDashboardData]);
 
   const handleVendorChange = async (value: string) => {
     console.log('[RMDashboard] Vendor selected:', value);
@@ -208,7 +255,7 @@ const RMDashboardScreen = () => {
           onValueChange={handleVendorChange}
           style={styles.picker}
         >
-          <Picker.Item label="Select Vendor" value="0" />
+          <Picker.Item label="All Vendors" value="0" />
           {vendors.map(v => (
             <Picker.Item key={v.ID} label={v.Name} value={v.ID.toString()} />
           ))}
@@ -224,7 +271,7 @@ const RMDashboardScreen = () => {
           keyExtractor={(_, i) => i.toString()}
           renderItem={renderItem}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>Select a vendor to load dashboard</Text>
+            <Text style={styles.emptyText}>No dashboard data available</Text>
           }
           contentContainerStyle={styles.list}
         />

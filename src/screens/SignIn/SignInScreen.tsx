@@ -93,7 +93,7 @@ const SignInScreen = () => {
 
     setIsLoading(true);
     try {
-      // console.log('login started with data:', loginData);
+      console.log('login started with data:', loginData);
 
       const response = await LogIn(loginData);
 

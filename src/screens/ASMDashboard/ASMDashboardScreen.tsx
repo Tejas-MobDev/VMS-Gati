@@ -12,7 +12,7 @@
  *
  * Ionic → RN: same as RMDashboard (Picker, FlatList, TouchableOpacity, routeMap)
  */
-import React, { useState, useCallback, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -20,6 +20,8 @@ import {
     TouchableOpacity,
     StyleSheet,
     Alert,
+    AppState,
+    AppStateStatus,
 } from 'react-native';
 import { DashboardListSkeleton } from '../../components/DashboardListSkeleton';
 import { Picker } from '@react-native-picker/picker';
@@ -57,6 +59,7 @@ const ASMDashboardScreen = () => {
     const navigation = useNavigation<any>();
     const {
         sessionToken,
+        isAuthChecked,
         selectedVendorId,
         selectedRMId,
         setSelectedVendor,
@@ -72,10 +75,38 @@ const ASMDashboardScreen = () => {
     const [dashboardData, setDashboardData] = useState<DashboardMenuItem[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [dataLoaded, setDataLoaded] = useState(false);
+    const selectedVendorRef = useRef(selectedVendorLocal);
+    selectedVendorRef.current = selectedVendorLocal;
+    const selectedRMRef = useRef(selectedRMLocal);
+    selectedRMRef.current = selectedRMLocal;
+    const initialLoadDoneRef = useRef(false);
+    const appStateRef = useRef(AppState.currentState);
 
     useEffect(() => {
+        if (!isAuthChecked) {
+            return;
+        }
+        setSelectedVendorLocal(selectedVendorId ?? '0');
         setSelectedRMLocal(selectedRMId ?? '0');
-    }, [selectedRMId]);
+    }, [isAuthChecked, selectedVendorId, selectedRMId]);
+
+    useEffect(() => {
+        if (!dataLoaded || allVendors.length === 0) {
+            return;
+        }
+        const rmId = selectedRMLocal;
+        if (rmId === '0') {
+            setFilteredVendors(allVendors);
+            return;
+        }
+        const numericVal = parseInt(rmId, 10);
+        setFilteredVendors(
+            allVendors.filter(v => {
+                const optional: number[] = v.Optional ?? [];
+                return optional.includes(numericVal) || optional.includes(-1);
+            }),
+        );
+    }, [dataLoaded, allVendors, selectedRMLocal]);
 
     useFocusEffect(
         useCallback(() => {
@@ -115,6 +146,51 @@ const ASMDashboardScreen = () => {
         },
         [sessionToken],
     );
+
+    // Auto-load once after login / app restart with the current vendor + RM selection.
+    useEffect(() => {
+        if (
+            !isAuthChecked ||
+            !sessionToken ||
+            !dataLoaded ||
+            initialLoadDoneRef.current
+        ) {
+            return;
+        }
+        initialLoadDoneRef.current = true;
+        const vendorId = selectedVendorId ?? '0';
+        const rmId = selectedRMId ?? '0';
+        loadDashboardData(vendorId, rmId);
+    }, [
+        isAuthChecked,
+        sessionToken,
+        dataLoaded,
+        selectedVendorId,
+        selectedRMId,
+        loadDashboardData,
+    ]);
+
+    // Refresh when app returns from background (not on in-app navigation).
+    useEffect(() => {
+        const subscription = AppState.addEventListener(
+            'change',
+            (nextState: AppStateStatus) => {
+                if (
+                    appStateRef.current.match(/inactive|background/) &&
+                    nextState === 'active' &&
+                    sessionToken &&
+                    dataLoaded
+                ) {
+                    loadDashboardData(
+                        selectedVendorRef.current,
+                        selectedRMRef.current,
+                    );
+                }
+                appStateRef.current = nextState;
+            },
+        );
+        return () => subscription.remove();
+    }, [sessionToken, dataLoaded, loadDashboardData]);
 
     const handleRMChange = async (value: string) => {
         console.log('[ASMDashboard] RM selected:', value);
@@ -231,7 +307,7 @@ const ASMDashboardScreen = () => {
                     selectedValue={selectedVendorLocal}
                     onValueChange={handleVendorChange}
                     style={styles.picker}>
-                    <Picker.Item label="Select Vendor" value="0" />
+                    <Picker.Item label="All Vendors" value="0" />
                     {filteredVendors.map(v => (
                         <Picker.Item key={v.ID} label={v.Name} value={v.ID.toString()} />
                     ))}
@@ -246,7 +322,7 @@ const ASMDashboardScreen = () => {
                     keyExtractor={(_, i) => i.toString()}
                     renderItem={renderItem}
                     ListEmptyComponent={
-                        <Text style={styles.emptyText}>Select RM or vendor to load dashboard</Text>
+                        <Text style={styles.emptyText}>No dashboard data available</Text>
                     }
                     contentContainerStyle={styles.list}
                 />

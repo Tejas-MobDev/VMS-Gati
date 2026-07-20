@@ -171,6 +171,7 @@ const PendingPaymentScreen = () => {
         </Text>
         <Text style={styles.detail}>Paid: {item.PaidTillNow}</Text>
         <Text style={styles.detail}>Pending: {item.Balance}</Text>
+        <Text style={styles.detail}>Other Charges: {item.OnRoadAmt || 0}</Text>
         <Text style={styles.detail}>{item.InternalCompanyName}</Text>
         <TextInput
           style={styles.remarkInput}
