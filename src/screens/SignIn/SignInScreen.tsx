@@ -11,7 +11,7 @@
  *   [(ngModel)]            → useState + onChangeText
  *   NavController.navigateRoot() → navigation.reset() — clears back stack
  *
- * Loading: local isLoading state drives button skeleton.
+ * Loading: local isLoading state drives button activity indicator.
  * Auth: on success stores token + designation in AppContext then resets nav.
  */
 import React, { useState } from 'react';
@@ -25,8 +25,8 @@ import {
   Image,
   Platform,
   KeyboardAvoidingView,
+  ActivityIndicator,
 } from 'react-native';
-import { ButtonSkeleton } from '../../components/ButtonSkeleton';
 import axios from 'axios';
 import { Picker } from '@react-native-picker/picker';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -262,7 +262,7 @@ const SignInScreen = () => {
           disabled={isLoading}
         >
           {isLoading ? (
-            <ButtonSkeleton />
+            <ActivityIndicator color="#fff" />
           ) : (
             <Text style={styles.loginBtnText}>Login</Text>
           )}

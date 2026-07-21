@@ -28,9 +28,9 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { DocGridSkeleton } from '../../components/DocGridSkeleton';
-import { ButtonSkeleton } from '../../components/ButtonSkeleton';
 import {
   useFocusEffect,
   useNavigation,
@@ -346,7 +346,7 @@ const AttachNewDocsScreen = () => {
           disabled={isSubmitDisabled || isLoading}
         >
           {isLoading ? (
-            <ButtonSkeleton />
+            <ActivityIndicator color="#fff" />
           ) : (
             <Text style={styles.submitBtnText}>Submit</Text>
           )}

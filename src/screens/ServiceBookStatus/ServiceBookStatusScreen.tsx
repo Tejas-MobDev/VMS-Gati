@@ -52,6 +52,7 @@ const ServiceBookStatusScreen = () => {
   useFocusEffect(
     useCallback(() => {
       if (!sessionToken) {
+        HelperService.showAlert('Error', 'Session token is required.');
         return;
       }
       const vendorID = selectedVendorId;
@@ -72,7 +73,7 @@ const ServiceBookStatusScreen = () => {
         '| rmID:',
         rmID,
       );
-      GetListofServiceBookStatusForRM(sessionToken, vendorID, rmID ?? '0')
+      GetListofServiceBookStatusForRM(sessionToken, vendorID, rmID)
         .then(res => {
           if (res.IsSuccess) {
             console.log('ServiceBookStatusScreen loaded : ', res.Data);
