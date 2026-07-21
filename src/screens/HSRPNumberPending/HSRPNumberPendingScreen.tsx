@@ -113,12 +113,17 @@ const HSRPNumberPendingScreen = () => {
 
   const renderItem = ({ item }: { item: HSRPItem }) => (
     <View style={styles.card}>
-      <Text style={styles.numberPlate}>{item.NumberPlate}</Text>
-      <Text style={styles.detail}>Chassis: {item.ChassisNumber}</Text>
+
+      <Text style={styles.numberPlate}>{item.SalesLetterCustomerName}</Text>
+      <Text style={styles.detail}>{item.SoldTo_Vendor}</Text>
+      <Text style={styles.detail}>Chassis No. : {item.ChassisNumber}</Text>
+      <Text style={styles.detail}>Engine No. : {item.EngineNumber}</Text>
       <Text style={styles.detail}>
         {item.ProductName}, {item.VehicleColor}
       </Text>
-      <Text style={styles.detail}>{item.DealerName}</Text>
+      <Text style={styles.detail}>{item.NumberPlate}</Text>
+      <Text style={styles.detail}>Current Status Remark :{item.HSRPStatusRemark}</Text>
+
       {activeTab === 'NumberReceive' && (
         <TouchableOpacity
           style={styles.recBtn}

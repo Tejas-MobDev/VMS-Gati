@@ -23,8 +23,9 @@ import {
   ScrollView,
 } from 'react-native';
 import { CardListSkeleton } from '../../components/CardListSkeleton';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useAppContext } from '../../context/AppContext';
+import { guardDashboardSelection } from '../../utils/selectionGuard';
 import {
   PaymenofVendorForRM,
   SavePaymentRemarkInSalesOrderDet,
@@ -39,7 +40,8 @@ import HelperService from '../../utils/helpers';
 type TabType = 'Vehicle' | 'Epayment';
 
 const PendingPaymentScreen = () => {
-  const { sessionToken, selectedVendorId, selectedRMId } = useAppContext();
+  const { sessionToken, designation, selectedVendorId, selectedRMId } = useAppContext();
+  const navigation = useNavigation();
 
   const [activeTab, setActiveTab] = useState<TabType>('Vehicle');
   const [searchText, setSearchText] = useState('');
@@ -56,6 +58,9 @@ const PendingPaymentScreen = () => {
     useCallback(() => {
       setActiveTab('Vehicle');
       if (!sessionToken) {
+        return;
+      }
+      if (!guardDashboardSelection(designation, selectedVendorId, selectedRMId, navigation)) {
         return;
       }
       setIsLoading(true);
@@ -82,7 +87,7 @@ const PendingPaymentScreen = () => {
         })
         .catch(() => HelperService.showAlert('Error', 'Error in API.'))
         .finally(() => setIsLoading(false));
-    }, [sessionToken, selectedVendorId, selectedRMId]),
+    }, [sessionToken, designation, selectedVendorId, selectedRMId, navigation]),
   );
 
   const handleSearch = (text: string) => {
@@ -156,7 +161,7 @@ const PendingPaymentScreen = () => {
           {/* {index + 1}. {item.InternalVendorName} */}
         </Text>
         <Text style={styles.detail}>
-          Allotted on: {dateTimeSplit(item.AllotmentDateOn)}. Aging:{' | '}
+          Alloted on: {dateTimeSplit(item.AllotmentDateOn)}. Aging:{' | '}
           {item.Aging}
         </Text>
         <Text style={styles.detail}>
@@ -164,6 +169,9 @@ const PendingPaymentScreen = () => {
           {' | '}
           {item.SalesOrderDt_DispatchDate_Aging}
         </Text>
+        
+        <Text style={styles.detail}>SalesLetter Request Date : {item.SalesletterReqDate}</Text>
+        <Text style={styles.detail}>Insurance Request Date : {item.InsuranceReqDate}</Text>
         <Text style={styles.detail}>Chassis No : {item.ChessisNo}</Text>
         <Text style={styles.detail}>Engine No : {item.EngineNo}</Text>
         <Text style={styles.detail}>
@@ -205,13 +213,19 @@ const PendingPaymentScreen = () => {
           {item.Aging}
         </Text>
         <Text style={styles.detail}>
-          Chassis: {item.ChessisNo}, Engine: {item.EngineNo}
+          Chassis: {item.ChessisNo}
+        </Text>
+        <Text style={styles.detail}>
+          Engine: {item.EngineNo}
         </Text>
         <Text style={styles.detail}>
           {item.ProductName}, {item.ColorName}
         </Text>
         <Text style={styles.detail}>
-          Paid: {item.PaidTillNow} | Pending: {item.Balance}
+          Paid: {item.PaidTillNow}
+        </Text>
+        <Text style={styles.detail}>
+          Pending: {item.Balance}
         </Text>
         <Text style={styles.detail}>{item.InternalCompanyName}</Text>
         <TextInput

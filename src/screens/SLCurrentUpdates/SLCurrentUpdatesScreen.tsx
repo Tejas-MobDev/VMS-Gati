@@ -37,11 +37,12 @@ import {
 import type { SalesLetterUpdateItem } from '../../types/api';
 import { formatSLStatus, dateTimeSplit } from '../../utils/formatters';
 import HelperService from '../../utils/helpers';
+import { guardDashboardSelection, isDashboardSelectionValid } from '../../utils/selectionGuard';
 
 type TabType = 'Hold' | 'Requested' | 'In Progress';
 
 const SLCurrentUpdatesScreen = () => {
-  const { sessionToken, selectedVendorId, selectedRMId } = useAppContext();
+  const { sessionToken, designation, selectedVendorId, selectedRMId } = useAppContext();
   const navigation = useNavigation<any>();
   const isFocused = useIsFocused();
 
@@ -63,15 +64,21 @@ const SLCurrentUpdatesScreen = () => {
   // Reset cache/search on focus and reload the currently active tab.
   useFocusEffect(
     useCallback(() => {
+      if (!guardDashboardSelection(designation, selectedVendorId, selectedRMId, navigation)) {
+        return;
+      }
       setRequestedLoaded(false);
       setHoldLoaded(false);
       setInProgressLoaded(false);
       setSearchText('');
       setFocusRefreshToken(prev => prev + 1);
-    }, []),
+    }, [designation, selectedVendorId, selectedRMId, navigation]),
   );
 
   const loadTabData = async (tab: TabType, forceRefresh = false) => {
+    if (!isDashboardSelectionValid(designation, selectedVendorId, selectedRMId)) {
+      return;
+    }
     if (!forceRefresh && tab === 'Requested' && requestedLoaded) {
       return;
     }
@@ -131,6 +138,9 @@ const SLCurrentUpdatesScreen = () => {
 
   React.useEffect(() => {
     if (!isFocused || !sessionToken) {
+      return;
+    }
+    if (!isDashboardSelectionValid(designation, selectedVendorId, selectedRMId)) {
       return;
     }
 
@@ -203,11 +213,9 @@ const SLCurrentUpdatesScreen = () => {
         {new Date(item.SalesletterCreatedDate).toLocaleDateString('en-GB')}
       </Text>
       <Text style={styles.detail}>
-        Status: {formatSLStatus({ Statusid: Number(item.Statusid), Stat: item.Stat })}
+        {item.SoldTo_N} {'\n'}
       </Text>
-      <Text style={styles.detail}>
-        Updated on: {new Date(item.CreatedDate).toLocaleDateString('en-GB')}
-      </Text>
+
       <Text
         style={[
           styles.remarkText,
@@ -218,6 +226,15 @@ const SLCurrentUpdatesScreen = () => {
             : styles.remarkDefault,
         ]}
       >
+        <Text >
+          {formatSLStatus({ Statusid: Number(item.Statusid), Stat: item.Stat })}
+        </Text>
+
+        <Text >
+          Updated on: {new Date(item.CreatedDate).toLocaleDateString('en-GB')}
+        </Text>
+        {'\n'}
+
         {item.Remark}
       </Text>
     </>

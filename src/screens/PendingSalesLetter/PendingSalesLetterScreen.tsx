@@ -6,21 +6,26 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, FlatList, StyleSheet } from 'react-native';
 import { CardListSkeleton } from '../../components/CardListSkeleton';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useAppContext } from '../../context/AppContext';
+import { guardDashboardSelection } from '../../utils/selectionGuard';
 import { GetPendingSalesLetterRequestForRM } from '../../services/api';
 import type { PendingSalesLetterItem } from '../../types/api';
 import { dateTimeSplit } from '../../utils/formatters';
 import HelperService from '../../utils/helpers';
 
 const PendingSalesLetterScreen = () => {
-    const { sessionToken, selectedVendorId, selectedRMId } = useAppContext();
+    const { sessionToken, designation, selectedVendorId, selectedRMId } = useAppContext();
+    const navigation = useNavigation();
     const [list, setList] = useState<PendingSalesLetterItem[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
     useFocusEffect(
         useCallback(() => {
             if (!sessionToken) { return; }
+            if (!guardDashboardSelection(designation, selectedVendorId, selectedRMId, navigation)) {
+                return;
+            }
             setIsLoading(true);
             GetPendingSalesLetterRequestForRM(sessionToken, selectedVendorId, selectedRMId)
                 .then(res => {
@@ -32,7 +37,7 @@ const PendingSalesLetterScreen = () => {
                 })
                 .catch(() => HelperService.showAlert('Error', 'Error in API.'))
                 .finally(() => setIsLoading(false));
-        }, [sessionToken, selectedVendorId, selectedRMId]),
+        }, [sessionToken, designation, selectedVendorId, selectedRMId, navigation]),
     );
 
     const renderItem = ({ item }: { item: PendingSalesLetterItem }) => (

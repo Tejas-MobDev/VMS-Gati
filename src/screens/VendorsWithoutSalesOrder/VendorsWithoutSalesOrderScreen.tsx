@@ -28,8 +28,10 @@ const VendorsWithoutSalesOrderScreen = () => {
         return;
       }
       setIsLoading(true);
-      console.log('selected RM ; ', selectedRMId);
-      VendorWithoutSalesOrderForRM(sessionToken, selectedRMId)
+      const rmID =
+        !selectedRMId || selectedRMId === '0' ? null : selectedRMId;
+      console.log('selected RM ; ', rmID);
+      VendorWithoutSalesOrderForRM(sessionToken, rmID)
         .then(res => {
           if (res.IsSuccess) {
             setVendors(res.Data);

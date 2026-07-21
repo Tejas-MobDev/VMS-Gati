@@ -15,21 +15,26 @@ import {
     StyleSheet,
 } from 'react-native';
 import { CardListSkeleton } from '../../components/CardListSkeleton';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useAppContext } from '../../context/AppContext';
+import { guardDashboardSelection } from '../../utils/selectionGuard';
 import { TodaysSalesorderForRM } from '../../services/api';
 import type { SalesOrderItem } from '../../types/api';
 import { dateTimeSplit } from '../../utils/formatters';
 import HelperService from '../../utils/helpers';
 
 const TodaySalesOrderScreen = () => {
-    const { sessionToken, selectedVendorId, selectedRMId } = useAppContext();
+    const { sessionToken, designation, selectedVendorId, selectedRMId } = useAppContext();
+    const navigation = useNavigation();
     const [orders, setOrders] = useState<SalesOrderItem[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
     useFocusEffect(
         useCallback(() => {
             if (!sessionToken) { return; }
+            if (!guardDashboardSelection(designation, selectedVendorId, selectedRMId, navigation)) {
+                return;
+            }
             setIsLoading(true);
             TodaysSalesorderForRM(sessionToken, selectedVendorId, selectedRMId)
                 .then(res => {
@@ -41,7 +46,7 @@ const TodaySalesOrderScreen = () => {
                 })
                 .catch(() => HelperService.showAlert('Error', 'Error in API.'))
                 .finally(() => setIsLoading(false));
-        }, [sessionToken, selectedVendorId, selectedRMId]),
+        }, [sessionToken, designation, selectedVendorId, selectedRMId, navigation]),
     );
 
     const renderItem = ({ item }: { item: SalesOrderItem }) => (
