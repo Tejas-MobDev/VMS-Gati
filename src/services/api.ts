@@ -48,8 +48,8 @@ import type {
 
 const BASE_PATH = Config.API_URL;
 
-// const CURRENT_VERSION = '1.0.18'; // Test version
-const CURRENT_VERSION =  '1.0.23'; // live version
+const CURRENT_VERSION = '1.0.18'; // Test version
+// const CURRENT_VERSION =  '1.0.23'; // live version
 
 export type { ApiResponse } from '../types/api';
 
@@ -183,7 +183,7 @@ export function LastFewDaysPending_GoodsDispatchForRM(
 
 export function VendorWithoutSalesOrderForRM(
   sessionToken: string,
-  rmID: string,
+  rmID: string | null,
 ): Promise<ApiResponse<VendorWithoutSalesOrderItem[]>> {
   return apiGet(
     BASE_PATH + `MobileGoodown/VendorWithoutSalesOrderForRM?RMID=${rmID}`,
