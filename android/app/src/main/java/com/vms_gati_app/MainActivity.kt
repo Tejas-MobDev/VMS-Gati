@@ -1,4 +1,4 @@
-package com.vms_gati_app
+package dolphin.gatti.app
 
 import android.os.Bundle
 import com.facebook.react.ReactActivity

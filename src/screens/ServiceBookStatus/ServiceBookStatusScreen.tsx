@@ -56,7 +56,14 @@ const ServiceBookStatusScreen = () => {
         return;
       }
       const vendorID = selectedVendorId;
-      const rmID = showAll ? (designation === 'RM' ? null : '0') : selectedRMId;
+      // const rmID = showAll ? (designation === 'RM' ? null : '0') : selectedRMId;
+
+      let rmID = showAll
+        ? (designation === 'RM' ? null : '0')
+        : selectedRMId;
+
+      rmID = rmID === '0' ? null : rmID;
+
       // console.log(
       //   'data comming from useContext hook: ',
       //   sessionToken,
@@ -98,8 +105,8 @@ const ServiceBookStatusScreen = () => {
       activeTab === 'Pending'
         ? pendingList
         : activeTab === 'Hold'
-        ? holdList
-        : recList;
+          ? holdList
+          : recList;
     if (!searchText) {
       return base;
     }
@@ -226,7 +233,7 @@ const ServiceBookStatusScreen = () => {
                 activeTab === tab && styles.tabBtnTextActive,
               ]}
             >
-              {tab === 'Rec_ServiceBook' ? 'Received' : tab}
+              {tab === 'Rec_ServiceBook' ? 'Receive' : tab}
             </Text>
           </TouchableOpacity>
         ))}
