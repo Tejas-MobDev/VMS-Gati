@@ -31,9 +31,15 @@ local.properties
 *.iml
 *.hprof
 .cxx/
+
 *.keystore
 !debug.keystore
 .kotlin/
+
+# Signing
+android/app/*.jks
+android/app/*.keystore
+android/gradle.properties
 
 # node.js
 #
